@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${K8S_CONFIG_MAP_NAME}
+  namespace: ${K8S_NAMESPACE}
+data:
+  SwaggerServersList: "${SWAGGER_SERVERS_LIST}"
+  App__PublicBaseUrl: "${APP_PUBLIC_BASE_URL}"
+  Data__ConnectionString: "${DATA_CONNECTION_STRING}"
+  Data__SeedEnabled: "${DATA_SEED_ENABLED}"
+  Data__SeedZipPath: "${DATA_SEED_ZIP_PATH}"
+  Auth__ApproverEmail: "${AUTH_APPROVER_EMAIL}"
+  Auth__StorePath: "${AUTH_STORE_PATH}"
+  Auth__CookieName: "${AUTH_COOKIE_NAME}"
+  Auth__AllowSelfRegistration: "${AUTH_ALLOW_SELF_REGISTRATION}"
+  Auth__Bootstrap__Enabled: "${AUTH_BOOTSTRAP_ENABLED}"
+  Auth__Bootstrap__Name: "${AUTH_BOOTSTRAP_NAME}"
+  Auth__Bootstrap__Email: "${AUTH_BOOTSTRAP_EMAIL}"
+  Reminders__SchedulerEnabled: "${REMINDERS_SCHEDULER_ENABLED}"
+  Reminders__PollSeconds: "${REMINDERS_POLL_SECONDS}"
+  Smtp__Host: "${SMTP_HOST}"
+  Smtp__Port: "${SMTP_PORT}"
+  Smtp__EnableSsl: "${SMTP_ENABLE_SSL}"
+  Smtp__From: "${SMTP_FROM}"
