@@ -30,6 +30,11 @@ public static class DataBootstrapper
             "ReminderRules",
             "MaxPhotoAttachments",
             "\"MaxPhotoAttachments\" INTEGER NOT NULL DEFAULT 3");
+        await EnsureColumnAsync(
+            db,
+            "Products",
+            "CustomFieldsJson",
+            "\"CustomFieldsJson\" TEXT NOT NULL DEFAULT ''");
 
         var seeder = scope.ServiceProvider.GetRequiredService<SeedService>();
         await seeder.SeedAsync();

@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Controle de Estoque</title>
   <meta name="theme-color" content="#f6f7f4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Estoque">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <script>
     (() => {
       try {
@@ -91,6 +95,7 @@
           <strong>Estoque</strong>
           <span>Controle geral</span>
         </div>
+        <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Recolher menu" title="Recolher menu">Menu</button>
       </div>
       <nav id="navMenu" class="nav-menu"></nav>
     </aside>

@@ -9,5 +9,5 @@ public class ProductFormDto
     public decimal SaleValue { get; set; }
     public string ImagePath { get; set; } = string.Empty;
     public string LegacyImageUrl { get; set; } = string.Empty;
-    public string Catalyst { get; set; } = string.Empty;
+    public List<ProductFieldDto> CustomFields { get; set; } = new();
 }

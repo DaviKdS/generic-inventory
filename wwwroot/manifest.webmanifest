@@ -1,0 +1,19 @@
+{
+  "name": "Controle de Estoque",
+  "short_name": "Estoque",
+  "description": "Controle generico de estoque para uso no navegador e Android.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7f4",
+  "theme_color": "#f6f7f4",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

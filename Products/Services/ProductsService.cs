@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using GenericInventory.Data;
 using GenericInventory.Products.Dtos;
 using GenericInventory.Products.Entities;
@@ -24,7 +25,7 @@ public class ProductsService
             query = query.Where(product =>
                 product.Code.Contains(term) ||
                 product.Description.Contains(term) ||
-                product.Catalyst.Contains(term));
+                product.CustomFieldsJson.Contains(term));
         }
 
         if (criticalOnly)
@@ -103,7 +104,26 @@ public class ProductsService
         product.SaleValue = form.SaleValue;
         product.ImagePath = form.ImagePath.Trim();
         product.LegacyImageUrl = form.LegacyImageUrl.Trim();
-        product.Catalyst = form.Catalyst.Trim();
+        product.CustomFieldsJson = JsonSerializer.Serialize(NormalizeFields(form.CustomFields));
+        product.Catalyst = string.Empty;
+    }
+
+    private static IReadOnlyList<ProductFieldDto> NormalizeFields(IEnumerable<ProductFieldDto>? fields)
+    {
+        if (fields == null)
+        {
+            return Array.Empty<ProductFieldDto>();
+        }
+
+        return fields
+            .Select(field => new ProductFieldDto
+            {
+                Name = field.Name.Trim(),
+                Value = field.Value.Trim()
+            })
+            .Where(field => !string.IsNullOrWhiteSpace(field.Name) || !string.IsNullOrWhiteSpace(field.Value))
+            .Take(24)
+            .ToList();
     }
 
     private static string NormalizeCode(string code)

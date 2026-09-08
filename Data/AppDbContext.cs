@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
             entity.Property(product => product.CurrentStock).HasColumnType("decimal(18,2)");
             entity.Property(product => product.MinimumStock).HasColumnType("decimal(18,2)");
             entity.Property(product => product.SaleValue).HasColumnType("decimal(18,2)");
+            entity.Property(product => product.CustomFieldsJson).HasDefaultValue("");
         });
 
         modelBuilder.Entity<Employee>(entity =>

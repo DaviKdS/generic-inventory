@@ -20,6 +20,8 @@
   --auth-green-glow: rgba(47, 125, 92, 0.13);
   --tab-shadow: 0 4px 12px rgba(30, 60, 80, 0.08);
   --shadow: 0 18px 45px rgba(32, 45, 55, 0.12);
+  --motion-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
@@ -140,12 +142,18 @@ button {
   color: var(--muted);
   min-height: 38px;
   font-weight: 700;
+  transition:
+    background-color 180ms var(--motion-standard),
+    box-shadow 180ms var(--motion-standard),
+    color 180ms var(--motion-standard),
+    transform 180ms var(--motion-standard);
 }
 
 .tab.active {
   background: var(--surface);
   color: var(--blue);
   box-shadow: var(--tab-shadow);
+  transform: translateY(-1px);
 }
 
 .auth-form,
@@ -235,6 +243,24 @@ textarea {
   gap: 8px;
   font-weight: 800;
   text-decoration: none;
+  transition:
+    background-color 180ms var(--motion-standard),
+    border-color 180ms var(--motion-standard),
+    box-shadow 180ms var(--motion-standard),
+    color 180ms var(--motion-standard),
+    transform 180ms var(--motion-standard);
+}
+
+.button:hover,
+.sidebar-toggle:hover,
+.nav-item:hover {
+  transform: translateY(-1px);
+}
+
+.button:active,
+.sidebar-toggle:active,
+.nav-item:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .button.full {
@@ -293,6 +319,11 @@ textarea {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 260px 1fr;
+  transition: grid-template-columns 260ms var(--motion-emphasis);
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 76px 1fr;
 }
 
 .sidebar {
@@ -302,6 +333,10 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  transition:
+    padding 260ms var(--motion-emphasis),
+    background-color 180ms var(--motion-standard),
+    border-color 180ms var(--motion-standard);
 }
 
 .sidebar-brand,
@@ -309,6 +344,11 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.sidebar-brand {
+  justify-content: space-between;
+  min-height: 42px;
 }
 
 .sidebar-brand strong,
@@ -320,6 +360,22 @@ textarea {
 .user-chip span {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.sidebar-toggle {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--blue);
+  min-height: 34px;
+  min-width: 54px;
+  padding: 6px 10px;
+  font-weight: 800;
+  transition:
+    background-color 180ms var(--motion-standard),
+    border-color 180ms var(--motion-standard),
+    color 180ms var(--motion-standard),
+    transform 180ms var(--motion-standard);
 }
 
 .nav-menu {
@@ -339,11 +395,51 @@ textarea {
   padding: 0 12px;
   font-weight: 800;
   text-align: left;
+  animation: softRise 360ms var(--motion-emphasis) both;
+  transition:
+    background-color 180ms var(--motion-standard),
+    color 180ms var(--motion-standard),
+    padding 260ms var(--motion-emphasis),
+    transform 180ms var(--motion-standard);
 }
 
 .nav-item.active {
   background: var(--blue-2);
   color: var(--blue);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.sidebar-collapsed .sidebar {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+}
+
+.sidebar-collapsed .sidebar-brand div {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  min-width: 54px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar-collapsed .nav-item span {
+  max-width: 44px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: max-width 220ms var(--motion-emphasis), opacity 180ms var(--motion-standard);
 }
 
 .workspace {
@@ -373,6 +469,7 @@ textarea {
   padding: 22px 24px 40px;
   display: grid;
   gap: 18px;
+  animation: softRise 360ms var(--motion-emphasis) both;
 }
 
 .toast {
@@ -381,6 +478,7 @@ textarea {
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 8px;
+  animation: toastIn 240ms var(--motion-emphasis) both;
 }
 
 .status-banner {
@@ -433,7 +531,7 @@ textarea {
 }
 
 .product-grid {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
 .panel,
@@ -443,6 +541,17 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition:
+    border-color 180ms var(--motion-standard),
+    box-shadow 220ms var(--motion-standard),
+    transform 220ms var(--motion-standard);
+}
+
+.panel:hover,
+.metric-card:hover,
+.product-card:hover {
+  box-shadow: 0 14px 34px rgba(32, 45, 55, 0.1);
+  transform: translateY(-2px);
 }
 
 .panel {
@@ -481,6 +590,25 @@ textarea {
 .product-card {
   overflow: hidden;
   display: grid;
+  animation: catalogCardIn 420ms var(--motion-emphasis) both;
+  animation-delay: var(--entry-delay, 0ms);
+}
+
+.product-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--blue-2), var(--green-2));
+  border-bottom: 1px solid var(--line);
+  color: var(--blue);
+  font-size: 2.2rem;
+  font-weight: 900;
+}
+
+.product-image.placeholder {
+  text-transform: uppercase;
 }
 
 .product-body {
@@ -496,11 +624,80 @@ textarea {
   letter-spacing: 0;
 }
 
+@keyframes softRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes catalogCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .product-meta,
 .tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.field-chip-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.field-chip-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 8px 10px;
+}
+
+.field-chip-list dt,
+.field-chip-list dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.field-chip-list dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.field-chip-list dd {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .tag {
@@ -568,6 +765,41 @@ td.actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.image-field small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.custom-fields-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.custom-fields-editor .panel-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.custom-fields-editor h2 {
+  font-size: 1rem;
+}
+
+.custom-field-list {
+  display: grid;
+  gap: 8px;
+}
+
+.custom-field-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(140px, 1fr) auto;
+  gap: 8px;
+}
+
 .empty {
   padding: 24px;
   color: var(--muted);
@@ -576,6 +808,10 @@ td.actions {
 
 @media (max-width: 900px) {
   .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 
@@ -591,6 +827,24 @@ td.actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .sidebar-collapsed .sidebar-brand {
+    justify-content: space-between;
+  }
+
+  .sidebar-collapsed .sidebar-brand div {
+    display: block;
+  }
+
+  .sidebar-collapsed .nav-menu {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-collapsed .nav-item span {
+    max-width: none;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
@@ -600,6 +854,21 @@ td.actions {
   .two-columns,
   .form-grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .custom-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
   }
 }
 

@@ -1,4 +1,5 @@
 using GenericInventory.Products.Entities;
+using System.Text.Json;
 
 namespace GenericInventory.Products.Dtos;
 
@@ -12,7 +13,7 @@ public class ProductDto
     public decimal SaleValue { get; set; }
     public string ImagePath { get; set; } = string.Empty;
     public string LegacyImageUrl { get; set; } = string.Empty;
-    public string Catalyst { get; set; } = string.Empty;
+    public IReadOnlyList<ProductFieldDto> CustomFields { get; set; } = Array.Empty<ProductFieldDto>();
     public bool IsCritical => CurrentStock <= MinimumStock;
 
     public static ProductDto FromEntity(Product product)
@@ -27,7 +28,24 @@ public class ProductDto
             SaleValue = product.SaleValue,
             ImagePath = product.ImagePath,
             LegacyImageUrl = product.LegacyImageUrl,
-            Catalyst = product.Catalyst
+            CustomFields = ReadCustomFields(product.CustomFieldsJson)
         };
+    }
+
+    private static IReadOnlyList<ProductFieldDto> ReadCustomFields(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Array.Empty<ProductFieldDto>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<ProductFieldDto>>(json) ?? new List<ProductFieldDto>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<ProductFieldDto>();
+        }
     }
 }

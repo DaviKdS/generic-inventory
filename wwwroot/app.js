@@ -21,21 +21,23 @@
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
+    sidebarCollapsed: readStoredBoolean("generic-inventory.sidebarCollapsed"),
     theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light"
   };
 
   const views = [
-    { id: "stock", label: "Estoque", permission: permissions.stockRead, title: "Estoque", subtitle: "Produtos, niveis minimos e atalhos de movimento." },
-    { id: "out", label: "Saida", permission: permissions.stockMove, title: "Saida", subtitle: "Registre baixa de estoque." },
-    { id: "in", label: "Entrada", permission: permissions.stockMove, title: "Entrada", subtitle: "Registre reposicao de estoque." },
-    { id: "movements", label: "Movimentacoes", permission: permissions.stockRead, title: "Movimentacoes", subtitle: "Historico de entradas e saidas." },
-    { id: "products", label: "Produtos", permission: permissions.productsManage, title: "Produtos", subtitle: "Cadastro e manutencao do catalogo." },
-    { id: "employees", label: "Funcionarios", permission: permissions.employeesManage, title: "Funcionarios", subtitle: "Pessoas disponiveis para movimentacoes." },
-    { id: "reminders", label: "Lembretes", permission: permissions.remindersManage, title: "Lembretes", subtitle: "Regras editaveis de alerta de estoque." },
-    { id: "access", label: "Acessos", permission: permissions.accessManage, title: "Acessos", subtitle: "Contas, convites e aprovacoes." }
+    { id: "stock", label: "Catálogo", permission: permissions.stockRead, title: "Catálogo", subtitle: "Itens, imagens, estoque e informações personalizadas." },
+    { id: "out", label: "Saída", permission: permissions.stockMove, title: "Saída", subtitle: "Registre baixa de estoque." },
+    { id: "in", label: "Entrada", permission: permissions.stockMove, title: "Entrada", subtitle: "Registre reposição de estoque." },
+    { id: "movements", label: "Movimentações", permission: permissions.stockRead, title: "Movimentações", subtitle: "Histórico de entradas e saídas." },
+    { id: "products", label: "Itens", permission: permissions.productsManage, title: "Itens", subtitle: "Cadastro flexível do catálogo." },
+    { id: "employees", label: "Funcionários", permission: permissions.employeesManage, title: "Funcionários", subtitle: "Pessoas disponíveis para movimentações." },
+    { id: "reminders", label: "Lembretes", permission: permissions.remindersManage, title: "Lembretes", subtitle: "Regras editáveis de alerta de estoque." },
+    { id: "access", label: "Acessos", permission: permissions.accessManage, title: "Acessos", subtitle: "Contas, convites e aprovações." }
   ];
 
   document.addEventListener("DOMContentLoaded", init);
+  registerServiceWorker();
 
   async function init() {
     bindElements();
@@ -48,7 +50,7 @@
   function bindElements() {
     [
       "authGate", "appShell", "authHint", "loginForm", "registerForm", "passwordForm",
-      "authMessage", "navMenu", "content", "viewTitle", "viewSubtitle", "userMenu", "toast"
+      "authMessage", "navMenu", "sidebarToggle", "content", "viewTitle", "viewSubtitle", "userMenu", "toast"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -91,6 +93,8 @@
         setView(button.dataset.view);
       }
     });
+
+    elements.sidebarToggle.addEventListener("click", toggleSidebar);
 
     elements.userMenu.addEventListener("click", (event) => {
       if (event.target.closest("[data-theme-toggle]")) {
@@ -148,7 +152,7 @@
       })
     });
     setAuthTab("login");
-    setAuthMessage("Cadastro enviado para aprovacao.", "success");
+    setAuthMessage("Cadastro enviado para aprovação.", "success");
   }
 
   async function forgotPassword() {
@@ -161,7 +165,7 @@
       method: "POST",
       body: JSON.stringify({ email })
     });
-    setAuthMessage("Se o e-mail estiver cadastrado, o link sera enviado.", "success");
+    setAuthMessage("Se o e-mail estiver cadastrado, o link será enviado.", "success");
   }
 
   async function resetPassword(formData) {
@@ -172,7 +176,7 @@
     const password = String(formData.get("password") || "");
     const confirmation = String(formData.get("confirmation") || "");
     if (password !== confirmation) {
-      throw new Error("As senhas nao conferem.");
+      throw new Error("As senhas não conferem.");
     }
 
     await authJson(`/password/reset/${encodeURIComponent(state.pendingPassword.id)}`, {
@@ -248,6 +252,7 @@
   function showApp() {
     elements.authGate.classList.add("hidden");
     elements.appShell.classList.remove("hidden");
+    applySidebarState();
     renderNav();
     renderUserMenu();
   }
@@ -279,11 +284,29 @@
       state.view = available[0]?.id || "stock";
     }
 
-    elements.navMenu.innerHTML = available.map((view) => `
-      <button class="nav-item ${state.view === view.id ? "active" : ""}" type="button" data-view="${view.id}">
+    elements.navMenu.innerHTML = available.map((view, index) => `
+      <button class="nav-item ${state.view === view.id ? "active" : ""}" type="button" data-view="${view.id}" title="${escapeAttribute(view.label)}" style="--entry-delay: ${index * 28}ms">
         <span>${escapeHtml(view.label)}</span>
       </button>
     `).join("");
+  }
+
+  function toggleSidebar() {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    try {
+      localStorage.setItem("generic-inventory.sidebarCollapsed", state.sidebarCollapsed ? "true" : "false");
+    } catch {
+      // Sidebar persistence is optional; the toggle still works for the session.
+    }
+    applySidebarState();
+  }
+
+  function applySidebarState() {
+    elements.appShell.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+    elements.sidebarToggle.textContent = state.sidebarCollapsed ? "Abrir" : "Menu";
+    elements.sidebarToggle.title = state.sidebarCollapsed ? "Expandir menu" : "Recolher menu";
+    elements.sidebarToggle.setAttribute("aria-label", elements.sidebarToggle.title);
+    elements.sidebarToggle.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
   }
 
   function renderUserMenu() {
@@ -381,17 +404,17 @@
 
     elements.content.innerHTML = `
       <section class="metric-grid">
-        ${metric("Produtos", total)}
-        ${metric("Criticos", critical, critical ? "bad" : "good")}
+        ${metric("Itens", total)}
+        ${metric("Críticos", critical, critical ? "bad" : "good")}
         ${metric("Estoque total", formatNumber(stock))}
         ${metric("Movimentos", state.movements.length)}
       </section>
       <section class="panel toolbar">
-        <input id="stockSearch" value="${escapeAttribute(search)}" placeholder="Buscar codigo, descricao ou catalisador">
-        <button class="button secondary" type="button" data-critical-only>Criticos</button>
+        <input id="stockSearch" value="${escapeAttribute(search)}" placeholder="Buscar código, nome ou campo personalizado">
+        <button class="button secondary" type="button" data-critical-only>Críticos</button>
       </section>
       <section class="product-grid">
-        ${state.products.map(renderProductCard).join("") || empty("Nenhum produto encontrado.")}
+        ${state.products.map((product, index) => renderProductCard(product, index)).join("") || empty("Nenhum produto encontrado.")}
       </section>
       <section class="panel">
         <h2>Movimentos recentes</h2>
@@ -400,9 +423,10 @@
     `;
   }
 
-  function renderProductCard(product) {
+  function renderProductCard(product, index = 0) {
     return `
-      <article class="product-card">
+      <article class="product-card" style="--entry-delay: ${Math.min(index, 12) * 34}ms">
+        ${renderProductImage(product)}
         <div class="product-body">
           <div>
             <span class="tag">${escapeHtml(product.code)}</span>
@@ -412,11 +436,11 @@
             <span class="tag ${product.isCritical ? "bad" : "good"}">Atual ${formatNumber(product.currentStock)}</span>
             <span class="tag">Min ${formatNumber(product.minimumStock)}</span>
             <span class="tag">R$ ${formatMoney(product.saleValue)}</span>
-            ${product.catalyst ? `<span class="tag warn">Cat ${escapeHtml(product.catalyst)}</span>` : ""}
           </div>
+          ${renderCustomFieldChips(product.customFields)}
           ${can(permissions.stockMove) ? `
             <div class="form-actions">
-              <button class="button ghost" type="button" data-stock-out="${escapeAttribute(product.code)}">Saida</button>
+              <button class="button ghost" type="button" data-stock-out="${escapeAttribute(product.code)}">Saída</button>
               <button class="button secondary" type="button" data-stock-in="${escapeAttribute(product.code)}">Entrada</button>
             </div>
           ` : ""}
@@ -425,9 +449,32 @@
     `;
   }
 
+  function renderProductImage(product) {
+    const imageUrl = product.imagePath || product.legacyImageUrl;
+    if (imageUrl) {
+      return `<img class="product-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(product.description)}" loading="lazy">`;
+    }
+
+    return `<div class="product-image placeholder" aria-hidden="true">${escapeHtml(productInitials(product))}</div>`;
+  }
+
+  function renderCustomFieldChips(fields = []) {
+    if (!fields.length) return "";
+    return `
+      <dl class="field-chip-list">
+        ${fields.slice(0, 6).map((field) => `
+          <div>
+            <dt>${escapeHtml(field.name || "Campo")}</dt>
+            <dd>${escapeHtml(field.value || "-")}</dd>
+          </div>
+        `).join("")}
+      </dl>
+    `;
+  }
+
   async function renderMovementForm(kind) {
     await Promise.all([loadProducts(), loadEmployees()]);
-    const typeLabel = kind === "out" ? "Saida" : "Entrada";
+    const typeLabel = kind === "out" ? "Saída" : "Entrada";
     const productOptions = state.products.map((product) => `
       <option value="${escapeAttribute(product.code)}">${escapeHtml(product.code)} - ${escapeHtml(product.description)}</option>
     `).join("");
@@ -447,20 +494,16 @@
             <input name="quantity" type="number" min="1" max="1000" step="0.01" required>
           </label>
           <label>
-            <span>Funcionario</span>
+            <span>Funcionário</span>
             <select name="employeeId">
-              <option value="">Sem funcionario</option>
+              <option value="">Sem funcionário</option>
               ${employeeOptions}
             </select>
-          </label>
-          <label>
-            <span>Catalisador</span>
-            <input name="catalyst">
           </label>
           <button class="button primary" type="submit">Registrar ${typeLabel}</button>
         </form>
         <section class="product-grid">
-          ${state.products.slice(0, 6).map(renderProductCard).join("")}
+          ${state.products.slice(0, 6).map((product, index) => renderProductCard(product, index)).join("")}
         </section>
       </section>
     `;
@@ -471,7 +514,7 @@
     await loadMovements();
     elements.content.innerHTML = `
       <section class="panel">
-        <h2>Historico</h2>
+        <h2>Histórico</h2>
         ${renderMovementTable(state.movements)}
       </section>
     `;
@@ -484,14 +527,28 @@
       <section class="two-columns">
         <form class="panel form-grid two" data-product-form>
           <input type="hidden" name="originalCode" value="${escapeAttribute(draft.code || "")}">
-          ${input("Codigo", "code", draft.code || "", true)}
-          ${input("Descricao", "description", draft.description || "", true)}
+          ${input("Código", "code", draft.code || "", true)}
+          ${input("Nome/descrição", "description", draft.description || "", true)}
           ${input("Estoque atual", "currentStock", draft.currentStock ?? 0, true, "number")}
-          ${input("Estoque minimo", "minimumStock", draft.minimumStock ?? 0, true, "number")}
+          ${input("Estoque mínimo", "minimumStock", draft.minimumStock ?? 0, true, "number")}
           ${input("Valor venda", "saleValue", draft.saleValue ?? 0, false, "number")}
-          ${input("Catalisador", "catalyst", draft.catalyst || "")}
+          <input type="hidden" name="imagePath" value="${escapeAttribute(draft.imagePath || "")}">
+          <label class="image-field">
+            <span>Imagem do item</span>
+            <input name="imageFile" type="file" accept="image/*">
+            <small>${draft.imagePath ? "Imagem anexada." : "JPG, PNG, WEBP ou GIF."}</small>
+          </label>
+          <section class="custom-fields-editor">
+            <div class="panel-heading">
+              <h2>Campos personalizados</h2>
+              <button class="button ghost" type="button" data-add-product-field>Adicionar campo</button>
+            </div>
+            <div class="custom-field-list">
+              ${renderCustomFieldInputs(draft.customFields)}
+            </div>
+          </section>
           <div class="form-actions">
-            <button class="button primary" type="submit">${draft.code ? "Salvar produto" : "Criar produto"}</button>
+            <button class="button primary" type="submit">${draft.code ? "Salvar item" : "Criar item"}</button>
             <button class="button ghost" type="button" data-clear-product>Limpar</button>
           </div>
         </form>
@@ -506,7 +563,7 @@
   function renderProductsTable() {
     return `
       <table>
-        <thead><tr><th>Codigo</th><th>Descricao</th><th>Atual</th><th>Minimo</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>Item</th><th>Atual</th><th>Mínimo</th><th></th></tr></thead>
         <tbody>
           ${state.products.map((product) => `
             <tr>
@@ -525,6 +582,17 @@
     `;
   }
 
+  function renderCustomFieldInputs(fields = []) {
+    const rows = fields.length ? fields : [{ name: "", value: "" }];
+    return rows.map((field) => `
+      <div class="custom-field-row">
+        <input name="customFieldName" value="${escapeAttribute(field.name || "")}" placeholder="Campo">
+        <input name="customFieldValue" value="${escapeAttribute(field.value || "")}" placeholder="Valor">
+        <button class="button ghost" type="button" data-remove-product-field title="Remover campo" aria-label="Remover campo">Remover</button>
+      </div>
+    `).join("");
+  }
+
   async function renderEmployeesAdmin() {
     await loadEmployees();
     const draft = state.drafts.employee || {};
@@ -533,16 +601,16 @@
         <form class="panel form-grid" data-employee-form>
           <input type="hidden" name="id" value="${escapeAttribute(draft.id || "")}">
           ${input("Nome", "name", draft.name || "", true)}
-          ${input("Matricula", "registration", draft.registration || "", true)}
-          ${input("Secao", "section", draft.section || "")}
+          ${input("Matrícula", "registration", draft.registration || "", true)}
+          ${input("Seção", "section", draft.section || "")}
           <div class="form-actions">
-            <button class="button primary" type="submit">${draft.id ? "Salvar funcionario" : "Criar funcionario"}</button>
+            <button class="button primary" type="submit">${draft.id ? "Salvar funcionário" : "Criar funcionário"}</button>
             <button class="button ghost" type="button" data-clear-employee>Limpar</button>
           </div>
         </form>
         <section class="table-card">
           <table>
-            <thead><tr><th>Nome</th><th>Matricula</th><th>Secao</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Matrícula</th><th>Seção</th><th></th></tr></thead>
             <tbody>
               ${state.employees.map((employee) => `
                 <tr>
@@ -573,15 +641,15 @@
         <form class="panel form-grid" data-reminder-form>
           <input type="hidden" name="id" value="${escapeAttribute(draft.id || "")}">
           ${input("Nome", "name", draft.name || "Alerta de estoque baixo", true)}
-          <label><span>Ativo</span><select name="isActive"><option value="true" ${draft.isActive !== false ? "selected" : ""}>Sim</option><option value="false" ${draft.isActive === false ? "selected" : ""}>Nao</option></select></label>
-          ${input("Horario diario", "dailyTime", draft.dailyTime || "08:00", true, "time")}
-          ${input("Destinatarios", "recipients", draft.recipients || "", true)}
+          <label><span>Ativo</span><select name="isActive"><option value="true" ${draft.isActive !== false ? "selected" : ""}>Sim</option><option value="false" ${draft.isActive === false ? "selected" : ""}>Não</option></select></label>
+          ${input("Horário diário", "dailyTime", draft.dailyTime || "08:00", true, "time")}
+          ${input("Destinatários", "recipients", draft.recipients || "", true)}
           ${input("Assunto", "subject", draft.subject || "Alerta de Estoque Baixo", true)}
           <label><span>Mensagem</span><textarea name="messageTemplate">${escapeHtml(draft.messageTemplate || "Estoque baixo\n\n{Products}\n\nGerado em: {GeneratedAt}")}</textarea></label>
           <label><span>Limite</span><select name="useProductMinimum"><option value="true" ${draft.useProductMinimum !== false ? "selected" : ""}>Estoque minimo do produto</option><option value="false" ${draft.useProductMinimum === false ? "selected" : ""}>Limite unico abaixo</option></select></label>
           ${input("Limite unico", "thresholdQuantity", draft.thresholdQuantity ?? "", false, "number")}
-          <label><span>Produtos incluidos nesta regra</span><textarea name="productCodesCsv" placeholder="Vazio = todos no alerta diario">${escapeHtml(draft.productCodesCsv || "")}</textarea></label>
-          <label><span>Disparar ao movimentar</span><select name="triggerOnMovement"><option value="true" ${draft.triggerOnMovement !== false ? "selected" : ""}>Sim, somente o item movimentado</option><option value="false" ${draft.triggerOnMovement === false ? "selected" : ""}>Nao, somente no horario diario</option></select></label>
+          <label><span>Itens incluídos nesta regra</span><textarea name="productCodesCsv" placeholder="Vazio = todos no alerta diário">${escapeHtml(draft.productCodesCsv || "")}</textarea></label>
+          <label><span>Disparar ao movimentar</span><select name="triggerOnMovement"><option value="true" ${draft.triggerOnMovement !== false ? "selected" : ""}>Sim, somente o item movimentado</option><option value="false" ${draft.triggerOnMovement === false ? "selected" : ""}>Não, somente no horário diário</option></select></label>
           <input type="hidden" name="includeProductImages" value="false">
           <input type="hidden" name="maxPhotoAttachments" value="0">
           <div class="form-actions">
@@ -623,8 +691,8 @@
           <strong>${title}</strong>
           <span>${escapeHtml(delivery.message || "")}</span>
           <div class="status-chips">
-            ${statusChip("Diario", delivery.powerAutomateDailyConfigured)}
-            ${statusChip("Movimentacao", delivery.powerAutomateMovementConfigured)}
+            ${statusChip("Diário", delivery.powerAutomateDailyConfigured)}
+            ${statusChip("Movimentação", delivery.powerAutomateMovementConfigured)}
             ${statusChip("Teste", delivery.powerAutomateManualConfigured)}
           </div>
           ${!ready && delivery.fallbackPath ? `<code>${escapeHtml(delivery.fallbackPath)}</code>` : ""}
@@ -644,18 +712,18 @@
         <div class="panel-heading">
           <h2>Power Automate</h2>
           <div class="status-chips">
-            ${settingsChip("Diario", settings.dailyConfigured, settings.dailySource)}
-            ${settingsChip("Movimentacao", settings.movementConfigured, settings.movementSource)}
+            ${settingsChip("Diário", settings.dailyConfigured, settings.dailySource)}
+            ${settingsChip("Movimentação", settings.movementConfigured, settings.movementSource)}
             ${settingsChip("Teste", settings.manualConfigured, settings.manualSource)}
             ${settingsChip("Segredo", settings.sharedSecretConfigured, settings.sharedSecretConfigured ? "ativo" : "")}
           </div>
         </div>
-        ${secretInput("URL diario", "dailyWebhookUrl", settings.dailyWebhookUrlPreview)}
-        ${secretInput("URL movimentacao", "movementWebhookUrl", settings.movementWebhookUrlPreview)}
+        ${secretInput("URL diária", "dailyWebhookUrl", settings.dailyWebhookUrlPreview)}
+        ${secretInput("URL de movimentação", "movementWebhookUrl", settings.movementWebhookUrlPreview)}
         ${secretInput("URL teste manual", "manualWebhookUrl", settings.manualWebhookUrlPreview)}
         ${secretInput("Segredo compartilhado", "sharedSecret", settings.sharedSecretConfigured ? "Configurado" : "", "password")}
-        <label class="checkbox-line"><input type="checkbox" name="clearDailyWebhookUrl"> Limpar diario</label>
-        <label class="checkbox-line"><input type="checkbox" name="clearMovementWebhookUrl"> Limpar movimentacao</label>
+        <label class="checkbox-line"><input type="checkbox" name="clearDailyWebhookUrl"> Limpar diário</label>
+        <label class="checkbox-line"><input type="checkbox" name="clearMovementWebhookUrl"> Limpar movimentação</label>
         <label class="checkbox-line"><input type="checkbox" name="clearManualWebhookUrl"> Limpar teste</label>
         <label class="checkbox-line"><input type="checkbox" name="clearSharedSecret"> Limpar segredo</label>
         <div class="form-actions">
@@ -690,7 +758,7 @@
   function renderRemindersTable() {
     return `
       <table>
-        <thead><tr><th>Nome</th><th>Horario</th><th>Destinatarios</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Horário</th><th>Destinatários</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${state.reminders.map((rule) => `
             <tr>
@@ -733,8 +801,8 @@
           <button class="button primary" type="submit">Enviar convite</button>
         </form>
         <section class="panel stack">
-          <h2>Aprovacoes</h2>
-          ${approvals.length ? approvals.map(renderApproval).join("") : empty("Nenhuma aprovacao pendente.")}
+          <h2>Aprovações</h2>
+          ${approvals.length ? approvals.map(renderApproval).join("") : empty("Nenhuma aprovação pendente.")}
         </section>
       </section>
       ${renderApprovalFlowSettings(approvalFlowSettings)}
@@ -765,10 +833,10 @@
     return `
       <form class="panel form-grid two integration-panel" data-approval-flow-settings-form>
         <div class="panel-heading">
-          <h2>Solicitacao de acesso</h2>
+          <h2>Solicitação de acesso</h2>
           <div class="status-chips">${status}</div>
         </div>
-        ${secretInput("URL do Flow de aprovacao", "webhookUrl", preview)}
+        ${secretInput("URL do Flow de aprovação", "webhookUrl", preview)}
         <label class="checkbox-line"><input type="checkbox" name="clearWebhookUrl"> Limpar URL do site</label>
         <div class="form-actions">
           <button class="button primary" type="submit">Salvar webhook</button>
@@ -848,11 +916,15 @@
       } else if (target.dataset.clearProduct !== undefined) {
         state.drafts.product = null;
         await renderProductsAdmin();
+      } else if (target.dataset.addProductField !== undefined) {
+        addProductField();
+      } else if (target.dataset.removeProductField !== undefined) {
+        removeProductField(target);
       } else if (target.dataset.editEmployee) {
         state.drafts.employee = state.employees.find((employee) => String(employee.id) === target.dataset.editEmployee);
         await renderEmployeesAdmin();
       } else if (target.dataset.deleteEmployee) {
-        if (confirm("Remover funcionario?")) {
+        if (confirm("Remover funcionário?")) {
           await json(`/api/employees/${target.dataset.deleteEmployee}`, { method: "DELETE" });
           await renderEmployeesAdmin();
         }
@@ -899,11 +971,11 @@
       } else if (target.dataset.exportDatabase !== undefined) {
         const response = await fetch("/api/access/database/export", { credentials: "same-origin" });
         if (!response.ok) {
-          let message = "Nao foi possivel exportar o banco de dados.";
+          let message = "Não foi possível exportar o banco de dados.";
           try {
             message = (await response.json()).message || message;
           } catch {
-            // Mantem a mensagem generica quando a resposta nao for JSON.
+            // Mantém a mensagem genérica quando a resposta não for JSON.
           }
           throw new Error(message);
         }
@@ -981,8 +1053,7 @@
       body: JSON.stringify({
         productCode: String(data.get("productCode") || ""),
         quantity: Number(data.get("quantity") || 0),
-        employeeId: data.get("employeeId") ? Number(data.get("employeeId")) : null,
-        catalyst: String(data.get("catalyst") || "")
+        employeeId: data.get("employeeId") ? Number(data.get("employeeId")) : null
       })
     });
     showToast("Movimento registrado.", "success");
@@ -992,7 +1063,10 @@
   async function saveProduct(form) {
     const data = new FormData(form);
     const originalCode = String(data.get("originalCode") || "");
-    const payload = formToObject(data, ["code", "description", "catalyst"], ["currentStock", "minimumStock", "saleValue"]);
+    const imagePath = await uploadProductImageIfNeeded(form, data);
+    const payload = formToObject(data, ["code", "description"], ["currentStock", "minimumStock", "saleValue"]);
+    payload.imagePath = imagePath;
+    payload.customFields = collectCustomFields(form);
     const path = originalCode ? `/api/products/${encodeURIComponent(originalCode)}` : "/api/products";
     await json(path, { method: originalCode ? "PUT" : "POST", body: JSON.stringify(payload) });
     state.drafts.product = null;
@@ -1006,8 +1080,48 @@
     const payload = formToObject(data, ["name", "registration", "section"], []);
     await json(id ? `/api/employees/${id}` : "/api/employees", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
     state.drafts.employee = null;
-    showToast("Funcionario salvo.", "success");
+    showToast("Funcionário salvo.", "success");
     await renderEmployeesAdmin();
+  }
+
+  async function uploadProductImageIfNeeded(form, data) {
+    const file = form.querySelector('input[name="imageFile"]')?.files?.[0];
+    if (!file) {
+      return String(data.get("imagePath") || "");
+    }
+
+    const upload = new FormData();
+    upload.append("file", file);
+    const result = await json("/api/products/image", { method: "POST", body: upload });
+    return result.imagePath || "";
+  }
+
+  function collectCustomFields(form) {
+    const names = [...form.querySelectorAll('input[name="customFieldName"]')];
+    const values = [...form.querySelectorAll('input[name="customFieldValue"]')];
+    return names.map((input, index) => ({
+      name: input.value.trim(),
+      value: values[index]?.value.trim() || ""
+    })).filter((field) => field.name || field.value);
+  }
+
+  function addProductField() {
+    const list = elements.content.querySelector(".custom-field-list");
+    if (!list) return;
+    list.insertAdjacentHTML("beforeend", renderCustomFieldInputs([{ name: "", value: "" }]));
+  }
+
+  function removeProductField(button) {
+    const row = button.closest(".custom-field-row");
+    const list = button.closest(".custom-field-list");
+    if (!row || !list) return;
+
+    if (list.querySelectorAll(".custom-field-row").length <= 1) {
+      row.querySelectorAll("input").forEach((input) => input.value = "");
+      return;
+    }
+
+    row.remove();
   }
 
   async function saveReminder(form) {
@@ -1054,7 +1168,7 @@
         clearWebhookUrl: data.get("clearWebhookUrl") === "on"
       })
     });
-    showToast("Webhook de aprovacao salvo.", "success");
+    showToast("Webhook de aprovação salvo.", "success");
     await renderAccess();
   }
 
@@ -1084,12 +1198,12 @@
     return `
       <div class="table-card">
         <table>
-          <thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Qtd</th><th>Total</th><th>Funcionario</th></tr></thead>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Qtd</th><th>Total</th><th>Funcionário</th></tr></thead>
           <tbody>
             ${movements.map((movement) => `
               <tr>
                 <td>${formatDate(movement.date)}</td>
-                <td><span class="tag ${movement.type === "Saida" ? "warn" : "good"}">${escapeHtml(movement.type)}</span></td>
+                <td><span class="tag ${movement.type === "Saida" || movement.type === "Saída" ? "warn" : "good"}">${escapeHtml(movement.type)}</span></td>
                 <td>${escapeHtml(movement.productCode)} - ${escapeHtml(movement.productDescription)}</td>
                 <td>${formatNumber(movement.quantity)}</td>
                 <td>R$ ${formatMoney(movement.totalValue)}</td>
@@ -1159,6 +1273,17 @@
     return value ? new Date(value).toLocaleDateString("pt-BR") : "";
   }
 
+  function productInitials(product) {
+    const text = product.description || product.code || "Item";
+    return text
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -1172,5 +1297,25 @@
     return escapeHtml(value);
   }
 
+  function readStoredBoolean(key) {
+    try {
+      return localStorage.getItem(key) === "true";
+    } catch {
+      return false;
+    }
+  }
+
   function refreshIcons() {}
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {
+        // Android can still use the responsive web app when service workers are unavailable.
+      });
+    });
+  }
 })();

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Controle de Estoque">
+  <rect width="512" height="512" rx="96" fill="#f6f7f4"/>
+  <path d="M128 158h256v236H128z" fill="#1f6f5b"/>
+  <path d="M160 126h192l32 32H128z" fill="#2f8f73"/>
+  <path d="M174 210h164v42H174zm0 74h164v42H174z" fill="#f6f7f4"/>
+  <path d="M128 158h256v236H128z" fill="none" stroke="#143c33" stroke-width="20" stroke-linejoin="round"/>
+</svg>

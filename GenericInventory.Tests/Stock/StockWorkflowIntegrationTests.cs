@@ -278,7 +278,10 @@ public class StockWorkflowIntegrationTests : IClassFixture<TestWebApplicationFac
             minimumStock,
             saleValue,
             imagePath,
-            catalyst = "x"
+            customFields = new[]
+            {
+                new { name = "Categoria", value = "Geral" }
+            }
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

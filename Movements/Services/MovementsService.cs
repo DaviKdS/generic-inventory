@@ -93,7 +93,7 @@ public class MovementsService
             EmployeeName = employeeName,
             EmployeeSection = employeeSection,
             EmployeeRegistration = employeeRegistration,
-            Catalyst = string.IsNullOrWhiteSpace(request.Catalyst) ? product.Catalyst : request.Catalyst.Trim()
+            Catalyst = string.Empty
         };
     }
 }
