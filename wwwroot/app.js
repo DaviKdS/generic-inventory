@@ -22,18 +22,21 @@
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
     sidebarCollapsed: readStoredBoolean("generic-inventory.sidebarCollapsed"),
+    language: readStoredString("generic-inventory.language", "pt") === "en" ? "en" : "pt",
     theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light"
   };
 
   const views = [
-    { id: "stock", label: "Catálogo", permission: permissions.stockRead, title: "Catálogo", subtitle: "Itens, imagens, estoque e informações personalizadas." },
-    { id: "out", label: "Saída", permission: permissions.stockMove, title: "Saída", subtitle: "Registre baixa de estoque." },
-    { id: "in", label: "Entrada", permission: permissions.stockMove, title: "Entrada", subtitle: "Registre reposição de estoque." },
-    { id: "movements", label: "Movimentações", permission: permissions.stockRead, title: "Movimentações", subtitle: "Histórico de entradas e saídas." },
-    { id: "products", label: "Itens", permission: permissions.productsManage, title: "Itens", subtitle: "Cadastro flexível do catálogo." },
-    { id: "employees", label: "Funcionários", permission: permissions.employeesManage, title: "Funcionários", subtitle: "Pessoas disponíveis para movimentações." },
-    { id: "reminders", label: "Lembretes", permission: permissions.remindersManage, title: "Lembretes", subtitle: "Regras editáveis de alerta de estoque." },
-    { id: "access", label: "Acessos", permission: permissions.accessManage, title: "Acessos", subtitle: "Contas, convites e aprovações." }
+    { id: "stock", label: { pt: "Catálogo", en: "Catalog" }, icon: "package-search", permission: permissions.stockRead, title: { pt: "Catálogo", en: "Catalog" }, subtitle: { pt: "Itens, imagens, estoque e informações personalizadas.", en: "Items, images, stock levels, and custom information." } },
+    { id: "out", label: { pt: "Saída", en: "Stock Out" }, icon: "log-out", permission: permissions.stockMove, title: { pt: "Saída", en: "Stock Out" }, subtitle: { pt: "Registre baixa de estoque.", en: "Register inventory withdrawals." } },
+    { id: "in", label: { pt: "Entrada", en: "Stock In" }, icon: "log-in", permission: permissions.stockMove, title: { pt: "Entrada", en: "Stock In" }, subtitle: { pt: "Registre reposição de estoque.", en: "Register inventory replenishment." } },
+    { id: "movements", label: { pt: "Movimentações", en: "Movements" }, icon: "list-filter", permission: permissions.stockRead, title: { pt: "Movimentações", en: "Movements" }, subtitle: { pt: "Histórico de entradas e saídas.", en: "History of stock entries and withdrawals." } },
+    { id: "products", label: { pt: "Itens", en: "Items" }, icon: "boxes", permission: permissions.productsManage, title: { pt: "Itens", en: "Items" }, subtitle: { pt: "Cadastro flexível do catálogo.", en: "Flexible catalog item registration." } },
+    { id: "employees", label: { pt: "Funcionários", en: "Employees" }, icon: "users", permission: permissions.employeesManage, title: { pt: "Funcionários", en: "Employees" }, subtitle: { pt: "Pessoas disponíveis para movimentações.", en: "People available for inventory movements." } },
+    { id: "reminders", label: { pt: "Lembretes", en: "Reminders" }, icon: "bell-ring", permission: permissions.remindersManage, title: { pt: "Lembretes", en: "Reminders" }, subtitle: { pt: "Regras editáveis de alerta de estoque.", en: "Editable stock alert rules." } },
+    { id: "access", label: { pt: "Acessos", en: "Access" }, icon: "shield-check", permission: permissions.accessManage, title: { pt: "Acessos", en: "Access" }, subtitle: { pt: "Contas, convites e aprovações.", en: "Accounts, invitations, and approvals." } },
+    { id: "docs", label: { pt: "Documentação", en: "Documentation" }, icon: "book-open", permission: null, title: { pt: "Documentação", en: "Documentation" }, subtitle: { pt: "Guia rápido de uso, acesso global e responsabilidades.", en: "Quick guide for usage, global access, and responsibilities." } },
+    { id: "releases", label: { pt: "Releases", en: "Releases" }, icon: "history", permission: null, title: { pt: "Releases", en: "Releases" }, subtitle: { pt: "Histórico das versões publicadas do serviço.", en: "History of published service versions." } }
   ];
 
   document.addEventListener("DOMContentLoaded", init);
@@ -41,6 +44,7 @@
 
   async function init() {
     bindElements();
+    document.documentElement.lang = state.language === "en" ? "en" : "pt-BR";
     setTheme(state.theme, false);
     bindEvents();
     readPasswordInvite();
@@ -50,7 +54,7 @@
   function bindElements() {
     [
       "authGate", "appShell", "authHint", "loginForm", "registerForm", "passwordForm",
-      "authMessage", "navMenu", "sidebarToggle", "content", "viewTitle", "viewSubtitle", "userMenu", "toast"
+      "authMessage", "navMenu", "sidebarToggle", "content", "viewTitle", "viewSubtitle", "userMenu", "toast", "siteFooter"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -82,6 +86,11 @@
         return;
       }
 
+      if (event.target.closest("[data-language-toggle]")) {
+        toggleLanguage();
+        return;
+      }
+
       if (event.target.closest("[data-forgot-password]")) {
         forgotPassword().catch(showError);
       }
@@ -99,6 +108,8 @@
     elements.userMenu.addEventListener("click", (event) => {
       if (event.target.closest("[data-theme-toggle]")) {
         toggleTheme();
+      } else if (event.target.closest("[data-language-toggle]")) {
+        toggleLanguage();
       } else if (event.target.closest("[data-logout]")) {
         logout().catch(showError);
       }
@@ -108,6 +119,9 @@
     elements.content.addEventListener("submit", handleContentSubmit);
     elements.content.addEventListener("input", handleContentInput);
     elements.content.addEventListener("change", handleContentChange);
+    elements.content.addEventListener("dragover", handleContentDragOver);
+    elements.content.addEventListener("dragleave", handleContentDragLeave);
+    elements.content.addEventListener("drop", handleContentDrop);
   }
 
   function readPasswordInvite() {
@@ -205,7 +219,7 @@
 
   async function json(path, options = {}) {
     const headers = { ...(options.headers || {}) };
-    if (options.body && !headers["Content-Type"]) {
+    if (options.body && !(options.body instanceof FormData) && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json";
     }
 
@@ -255,6 +269,7 @@
     applySidebarState();
     renderNav();
     renderUserMenu();
+    renderFooter();
   }
 
   function setAuthTab(tab) {
@@ -285,10 +300,12 @@
     }
 
     elements.navMenu.innerHTML = available.map((view, index) => `
-      <button class="nav-item ${state.view === view.id ? "active" : ""}" type="button" data-view="${view.id}" title="${escapeAttribute(view.label)}" style="--entry-delay: ${index * 28}ms">
-        <span>${escapeHtml(view.label)}</span>
+      <button class="nav-item ${state.view === view.id ? "active" : ""}" type="button" data-view="${view.id}" title="${escapeAttribute(viewText(view, "label"))}" style="--entry-delay: ${index * 28}ms">
+        <i data-lucide="${escapeAttribute(view.icon)}"></i>
+        <span>${escapeHtml(viewText(view, "label"))}</span>
       </button>
     `).join("");
+    refreshIcons();
   }
 
   function toggleSidebar() {
@@ -303,10 +320,11 @@
 
   function applySidebarState() {
     elements.appShell.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
-    elements.sidebarToggle.textContent = state.sidebarCollapsed ? "Abrir" : "Menu";
     elements.sidebarToggle.title = state.sidebarCollapsed ? "Expandir menu" : "Recolher menu";
     elements.sidebarToggle.setAttribute("aria-label", elements.sidebarToggle.title);
     elements.sidebarToggle.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+    elements.sidebarToggle.innerHTML = `<i data-lucide="${state.sidebarCollapsed ? "panel-left-open" : "panel-left-close"}"></i>`;
+    refreshIcons();
   }
 
   function renderUserMenu() {
@@ -319,8 +337,53 @@
         </div>
       </div>
       <button class="button ghost theme-toggle" type="button" data-theme-toggle title="${themeToggleLabel()}" aria-label="${themeToggleLabel()}">Tema</button>
-      <button class="button ghost" type="button" data-logout>Sair</button>
+      <button class="button ghost language-toggle" type="button" data-language-toggle title="${languageToggleLabel()}" aria-label="${languageToggleLabel()}"><i data-lucide="languages"></i><span>${state.language.toUpperCase()}</span></button>
+      <button class="button ghost" type="button" data-logout><i data-lucide="log-out"></i><span>${state.language === "en" ? "Sign out" : "Sair"}</span></button>
     ` : "";
+    refreshIcons();
+  }
+
+  function toggleLanguage() {
+    setLanguage(state.language === "pt" ? "en" : "pt");
+  }
+
+  function setLanguage(language, persist = true) {
+    state.language = language === "en" ? "en" : "pt";
+    document.documentElement.lang = state.language === "en" ? "en" : "pt-BR";
+
+    if (persist) {
+      try {
+        localStorage.setItem("generic-inventory.language", state.language);
+      } catch {
+        // Language persistence is optional; the toggle still works for the session.
+      }
+    }
+
+    renderNav();
+    renderUserMenu();
+    renderThemeToggleButtons();
+    renderLanguageToggleButtons();
+    renderFooter();
+    loadCurrentView().catch(showError);
+  }
+
+  function languageToggleLabel() {
+    return state.language === "pt" ? "Switch to English" : "Mudar para português";
+  }
+
+  function renderLanguageToggleButtons() {
+    const label = languageToggleLabel();
+    document.querySelectorAll("[data-language-toggle]").forEach((button) => {
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      const text = state.language === "en" ? "EN" : "PT";
+      if (button.classList.contains("icon-button")) {
+        button.innerHTML = `<i data-lucide="languages"></i><span class="sr-only">${escapeHtml(text)}</span>`;
+      } else {
+        button.innerHTML = `<i data-lucide="languages"></i><span>${escapeHtml(text)}</span>`;
+      }
+    });
+    refreshIcons();
   }
 
   function toggleTheme() {
@@ -342,6 +405,7 @@
     }
 
     renderThemeToggleButtons();
+    renderLanguageToggleButtons();
   }
 
   function renderThemeToggleButtons() {
@@ -349,11 +413,19 @@
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
       button.title = label;
       button.setAttribute("aria-label", label);
-      button.textContent = state.theme === "dark" ? "Tema claro" : "Tema escuro";
+      const text = state.theme === "dark"
+        ? (state.language === "en" ? "Light theme" : "Tema claro")
+        : (state.language === "en" ? "Dark theme" : "Tema escuro");
+      button.innerHTML = `<i data-lucide="${state.theme === "dark" ? "sun" : "moon"}"></i><span class="button-label">${text}</span>`;
     });
+    refreshIcons();
   }
 
   function themeToggleLabel() {
+    if (state.language === "en") {
+      return state.theme === "dark" ? "Use light theme" : "Use dark theme";
+    }
+
     return state.theme === "dark" ? "Usar tema claro" : "Usar tema escuro";
   }
 
@@ -366,8 +438,8 @@
 
   async function loadCurrentView() {
     const view = views.find((item) => item.id === state.view) || views[0];
-    elements.viewTitle.textContent = view.title;
-    elements.viewSubtitle.textContent = view.subtitle;
+    elements.viewTitle.textContent = viewText(view, "title");
+    elements.viewSubtitle.textContent = viewText(view, "subtitle");
 
     if (state.view === "stock") return renderStock();
     if (state.view === "out") return renderMovementForm("out");
@@ -377,6 +449,8 @@
     if (state.view === "employees") return renderEmployeesAdmin();
     if (state.view === "reminders") return renderReminders();
     if (state.view === "access") return renderAccess();
+    if (state.view === "docs") return renderDocumentation();
+    if (state.view === "releases") return renderReleases();
   }
 
   async function loadProducts(search = "", criticalOnly = false) {
@@ -440,8 +514,8 @@
           ${renderCustomFieldChips(product.customFields)}
           ${can(permissions.stockMove) ? `
             <div class="form-actions">
-              <button class="button ghost" type="button" data-stock-out="${escapeAttribute(product.code)}">Saída</button>
-              <button class="button secondary" type="button" data-stock-in="${escapeAttribute(product.code)}">Entrada</button>
+              <button class="button ghost" type="button" data-stock-out="${escapeAttribute(product.code)}"><i data-lucide="minus"></i><span>Saída</span></button>
+              <button class="button secondary" type="button" data-stock-in="${escapeAttribute(product.code)}"><i data-lucide="plus"></i><span>Entrada</span></button>
             </div>
           ` : ""}
         </div>
@@ -500,7 +574,7 @@
               ${employeeOptions}
             </select>
           </label>
-          <button class="button primary" type="submit">Registrar ${typeLabel}</button>
+          <button class="button primary" type="submit"><i data-lucide="check"></i><span>Registrar ${typeLabel}</span></button>
         </form>
         <section class="product-grid">
           ${state.products.slice(0, 6).map((product, index) => renderProductCard(product, index)).join("")}
@@ -532,24 +606,19 @@
           ${input("Estoque atual", "currentStock", draft.currentStock ?? 0, true, "number")}
           ${input("Estoque mínimo", "minimumStock", draft.minimumStock ?? 0, true, "number")}
           ${input("Valor venda", "saleValue", draft.saleValue ?? 0, false, "number")}
-          <input type="hidden" name="imagePath" value="${escapeAttribute(draft.imagePath || "")}">
-          <label class="image-field">
-            <span>Imagem do item</span>
-            <input name="imageFile" type="file" accept="image/*">
-            <small>${draft.imagePath ? "Imagem anexada." : "JPG, PNG, WEBP ou GIF."}</small>
-          </label>
+          ${productImageField(draft)}
           <section class="custom-fields-editor">
             <div class="panel-heading">
               <h2>Campos personalizados</h2>
-              <button class="button ghost" type="button" data-add-product-field>Adicionar campo</button>
+              <button class="button ghost" type="button" data-add-product-field><i data-lucide="plus"></i><span>Adicionar campo</span></button>
             </div>
             <div class="custom-field-list">
               ${renderCustomFieldInputs(draft.customFields)}
             </div>
           </section>
           <div class="form-actions">
-            <button class="button primary" type="submit">${draft.code ? "Salvar item" : "Criar item"}</button>
-            <button class="button ghost" type="button" data-clear-product>Limpar</button>
+            <button class="button primary" type="submit"><i data-lucide="save"></i><span>${draft.code ? "Salvar item" : "Criar item"}</span></button>
+            <button class="button ghost" type="button" data-clear-product><i data-lucide="eraser"></i><span>Limpar</span></button>
           </div>
         </form>
         <section class="table-card">
@@ -572,8 +641,8 @@
               <td>${formatNumber(product.currentStock)}</td>
               <td>${formatNumber(product.minimumStock)}</td>
               <td class="actions">
-                <button class="button secondary" type="button" data-edit-product="${escapeAttribute(product.code)}">Editar</button>
-                <button class="button danger" type="button" data-delete-product="${escapeAttribute(product.code)}">Remover</button>
+                <button class="button secondary" type="button" data-edit-product="${escapeAttribute(product.code)}"><i data-lucide="pencil"></i><span>Editar</span></button>
+                <button class="button danger" type="button" data-delete-product="${escapeAttribute(product.code)}"><i data-lucide="trash-2"></i><span>Remover</span></button>
               </td>
             </tr>
           `).join("")}
@@ -588,7 +657,7 @@
       <div class="custom-field-row">
         <input name="customFieldName" value="${escapeAttribute(field.name || "")}" placeholder="Campo">
         <input name="customFieldValue" value="${escapeAttribute(field.value || "")}" placeholder="Valor">
-        <button class="button ghost" type="button" data-remove-product-field title="Remover campo" aria-label="Remover campo">Remover</button>
+        <button class="icon-button ghost" type="button" data-remove-product-field title="Remover campo" aria-label="Remover campo"><i data-lucide="x"></i></button>
       </div>
     `).join("");
   }
@@ -890,6 +959,93 @@
     `;
   }
 
+  function renderDocumentation() {
+    elements.content.innerHTML = state.language === "en" ? `
+      <section class="docs-grid">
+        <article class="panel doc-card">
+          <i data-lucide="rocket"></i>
+          <h2>Starting the service</h2>
+          <p>Use <code>iniciar-servidor.ps1</code> to start the local server and generate a temporary public Cloudflare link when the tunnel tool is available.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="globe-2"></i>
+          <h2>Fixed domain</h2>
+          <p>For a permanent address, configure a fixed Cloudflare Tunnel and point your DNS record to it. The step-by-step reference is in <code>DOMINIO_FIXO.md</code>.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="shield-check"></i>
+          <h2>Access and security</h2>
+          <p>The first administrator account is used only for bootstrap. Keep real credentials private, approve users in the Access screen, and rotate temporary passwords after first use.</p>
+        </article>
+      </section>
+      <section class="panel legal-panel">
+        <h2>Service ownership</h2>
+        <p>Developed by: <strong>Davi Kasmirski dos Santos</strong>.</p>
+        <p>Contact: <a href="mailto:luizds979@gmail.com">luizds979@gmail.com</a> · GitHub: <a href="https://github.com/DaviKdS" target="_blank" rel="noopener noreferrer">github.com/DaviKdS</a>.</p>
+        <p>All rights reserved under applicable copyright law, including Brazilian Law No. 9,610/1998 where applicable. Unauthorized copying, resale, redistribution, or commercial exploitation of the service, layout, source code, brand elements, and documentation is prohibited without prior written authorization from the author.</p>
+      </section>
+    ` : `
+      <section class="docs-grid">
+        <article class="panel doc-card">
+          <i data-lucide="rocket"></i>
+          <h2>Iniciar o serviço</h2>
+          <p>Use <code>iniciar-servidor.ps1</code> para iniciar o servidor local e gerar um link público temporário do Cloudflare quando a ferramenta de túnel estiver disponível.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="globe-2"></i>
+          <h2>Domínio fixo</h2>
+          <p>Para ter um endereço permanente, configure um Cloudflare Tunnel fixo e aponte o registro DNS para ele. O passo a passo está em <code>DOMINIO_FIXO.md</code>.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="shield-check"></i>
+          <h2>Acesso e segurança</h2>
+          <p>A primeira conta de administrador é usada apenas para configuração inicial. Mantenha credenciais reais em sigilo, aprove usuários na tela Acessos e troque senhas temporárias após o primeiro uso.</p>
+        </article>
+      </section>
+      <section class="panel legal-panel">
+        <h2>Titularidade do serviço</h2>
+        <p>Desenvolvido por: <strong>Davi Kasmirski dos Santos</strong>.</p>
+        <p>Contato: <a href="mailto:luizds979@gmail.com">luizds979@gmail.com</a> · GitHub: <a href="https://github.com/DaviKdS" target="_blank" rel="noopener noreferrer">github.com/DaviKdS</a>.</p>
+        <p>Todos os direitos reservados conforme a legislação de direitos autorais aplicável, incluindo a Lei nº 9.610/1998 no Brasil quando aplicável. É proibida a cópia, revenda, redistribuição ou exploração comercial não autorizada do serviço, layout, código-fonte, elementos de marca e documentação sem autorização prévia e por escrito do autor.</p>
+      </section>
+    `;
+    refreshIcons();
+  }
+
+  function renderReleases() {
+    elements.content.innerHTML = `
+      <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag good">v1.1.0</span>
+            <h2>${state.language === "en" ? "English support and visual improvements" : "Suporte em inglês e melhorias visuais"}</h2>
+            <p>${state.language === "en"
+              ? "Adds PT/EN interface navigation, documentation inside the app, release notes, visual refinements, image upload improvements, and service copyright/contact information."
+              : "Adiciona navegação PT/EN, documentação dentro do app, notas de versão, refinamentos visuais, melhorias no anexo de imagens e informações de direitos autorais/contato do serviço."}</p>
+          </div>
+        </article>
+        <article class="panel release-card">
+          <div>
+            <span class="tag">v1.0.0</span>
+            <h2>${state.language === "en" ? "Initial stable version" : "Versão estável inicial"}</h2>
+            <p>${state.language === "en"
+              ? "Base inventory control with catalog, stock movements, employees, reminders, access control, PWA files, and temporary public link helper."
+              : "Base do controle de estoque com catálogo, movimentações, funcionários, lembretes, controle de acesso, arquivos PWA e auxiliar de link público temporário."}</p>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderFooter() {
+    if (!elements.siteFooter) return;
+
+    const year = new Date().getFullYear();
+    elements.siteFooter.innerHTML = state.language === "en"
+      ? `Developed by: <strong>Davi Kasmirski dos Santos</strong>. Contact: <a href="mailto:luizds979@gmail.com">luizds979@gmail.com</a> · <a href="https://github.com/DaviKdS" target="_blank" rel="noopener noreferrer">GitHub</a>. © ${year} Davi Kasmirski dos Santos. All rights reserved.`
+      : `Desenvolvido por: <strong>Davi Kasmirski dos Santos</strong>. Contato: <a href="mailto:luizds979@gmail.com">luizds979@gmail.com</a> · <a href="https://github.com/DaviKdS" target="_blank" rel="noopener noreferrer">GitHub</a>. © ${year} Davi Kasmirski dos Santos. Todos os direitos reservados.`;
+  }
+
   async function handleContentClick(event) {
     const target = event.target.closest("button");
     if (!target) return;
@@ -920,6 +1076,8 @@
         addProductField();
       } else if (target.dataset.removeProductField !== undefined) {
         removeProductField(target);
+      } else if (target.dataset.productImagePick !== undefined) {
+        target.closest("form")?.querySelector("[data-product-image-input]")?.click();
       } else if (target.dataset.editEmployee) {
         state.drafts.employee = state.employees.find((employee) => String(employee.id) === target.dataset.editEmployee);
         await renderEmployeesAdmin();
@@ -1028,6 +1186,18 @@
   }
 
   async function handleContentChange(event) {
+    const productImageInput = event.target.closest("[data-product-image-input]");
+    if (productImageInput && productImageInput.files.length) {
+      try {
+        await uploadProductImage(productImageInput.files[0], productImageInput.closest("form"));
+      } catch (error) {
+        showError(error);
+      } finally {
+        productImageInput.value = "";
+      }
+      return;
+    }
+
     const input = event.target.closest("[data-import-file]");
     if (!input || !input.files.length) return;
 
@@ -1064,7 +1234,7 @@
     const data = new FormData(form);
     const originalCode = String(data.get("originalCode") || "");
     const imagePath = await uploadProductImageIfNeeded(form, data);
-    const payload = formToObject(data, ["code", "description"], ["currentStock", "minimumStock", "saleValue"]);
+    const payload = formToObject(data, ["code", "description", "legacyImageUrl"], ["currentStock", "minimumStock", "saleValue"]);
     payload.imagePath = imagePath;
     payload.customFields = collectCustomFields(form);
     const path = originalCode ? `/api/products/${encodeURIComponent(originalCode)}` : "/api/products";
@@ -1084,6 +1254,37 @@
     await renderEmployeesAdmin();
   }
 
+  function handleContentDragOver(event) {
+    const dropzone = event.target.closest("[data-product-image-drop]");
+    if (!dropzone) return;
+
+    event.preventDefault();
+    dropzone.classList.add("dragging");
+  }
+
+  function handleContentDragLeave(event) {
+    const dropzone = event.target.closest("[data-product-image-drop]");
+    if (!dropzone || dropzone.contains(event.relatedTarget)) return;
+
+    dropzone.classList.remove("dragging");
+  }
+
+  async function handleContentDrop(event) {
+    const dropzone = event.target.closest("[data-product-image-drop]");
+    if (!dropzone) return;
+
+    event.preventDefault();
+    dropzone.classList.remove("dragging");
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    try {
+      await uploadProductImage(file, dropzone.closest("form"));
+    } catch (error) {
+      showError(error);
+    }
+  }
+
   async function uploadProductImageIfNeeded(form, data) {
     const file = form.querySelector('input[name="imageFile"]')?.files?.[0];
     if (!file) {
@@ -1094,6 +1295,27 @@
     upload.append("file", file);
     const result = await json("/api/products/image", { method: "POST", body: upload });
     return result.imagePath || "";
+  }
+
+  async function uploadProductImage(file, form) {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Envie um arquivo de imagem.");
+    }
+
+    const upload = new FormData();
+    upload.append("file", file);
+    const result = await json("/api/products/image", { method: "POST", body: upload });
+    const imagePath = String(result.imagePath || "");
+    const imagePathInput = form?.querySelector('input[name="imagePath"]');
+    const preview = form?.querySelector("[data-product-image-preview]");
+    const status = form?.querySelector("[data-product-image-status]");
+
+    if (imagePathInput) imagePathInput.value = imagePath;
+    const legacyImageInput = form?.querySelector('input[name="legacyImageUrl"]');
+    if (legacyImageInput) legacyImageInput.value = "";
+    if (preview) preview.innerHTML = `<img src="${escapeAttribute(imagePath)}" alt="">`;
+    if (status) status.textContent = "Imagem importada.";
+    showToast("Imagem importada.", "success");
   }
 
   function collectCustomFields(form) {
@@ -1230,6 +1452,28 @@
     `;
   }
 
+  function productImageField(draft) {
+    const image = draft.imagePath || draft.legacyImageUrl || "";
+    return `
+      <label class="image-field">
+        <span>Imagem do item</span>
+        <input type="hidden" name="imagePath" value="${escapeAttribute(draft.imagePath || "")}">
+        <input type="hidden" name="legacyImageUrl" value="${escapeAttribute(draft.legacyImageUrl || "")}">
+        <input class="hidden" type="file" accept="image/*" data-product-image-input>
+        <div class="image-dropzone" data-product-image-drop>
+          <div class="image-preview" data-product-image-preview>
+            ${image ? `<img src="${escapeAttribute(image)}" alt="">` : `<i data-lucide="image-plus"></i>`}
+          </div>
+          <div>
+            <strong data-product-image-status>${image ? "Imagem selecionada" : "Importar imagem"}</strong>
+            <span>Arraste uma imagem aqui ou escolha do PC.</span>
+          </div>
+          <button class="button secondary" type="button" data-product-image-pick><i data-lucide="upload"></i><span>Escolher</span></button>
+        </div>
+      </label>
+    `;
+  }
+
   function formToObject(data, strings, numbers) {
     const output = {};
     strings.forEach((key) => output[key] = String(data.get(key) || "").trim());
@@ -1237,7 +1481,14 @@
     return output;
   }
 
+  function viewText(view, key) {
+    const value = view?.[key];
+    if (!value || typeof value === "string") return value || "";
+    return value[state.language] || value.pt || value.en || "";
+  }
+
   function can(permission) {
+    if (!permission) return true;
     return Boolean(state.auth?.permissions?.includes(permission));
   }
 
@@ -1262,15 +1513,19 @@
   }
 
   function formatNumber(value) {
-    return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    return Number(value || 0).toLocaleString(locale(), { maximumFractionDigits: 2 });
   }
 
   function formatMoney(value) {
-    return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(value || 0).toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function formatDate(value) {
-    return value ? new Date(value).toLocaleDateString("pt-BR") : "";
+    return value ? new Date(value).toLocaleDateString(locale()) : "";
+  }
+
+  function locale() {
+    return state.language === "en" ? "en-US" : "pt-BR";
   }
 
   function productInitials(product) {
@@ -1305,7 +1560,19 @@
     }
   }
 
-  function refreshIcons() {}
+  function readStoredString(key, fallback = "") {
+    try {
+      return localStorage.getItem(key) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function refreshIcons() {
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
 
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) {

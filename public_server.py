@@ -63,7 +63,7 @@ def find_or_install_cloudflared(configured_path: str) -> str:
     local_cloudflared = tools_dir / "cloudflared.exe"
 
     if not local_cloudflared.exists():
-        print("Downloading cloudflared...")
+        print("Downloading cloudflared...", flush=True)
         urllib.request.urlretrieve(CLOUDFLARED_URL, local_cloudflared)
 
     return str(local_cloudflared)
@@ -112,7 +112,7 @@ def start_tunnel(cloudflared: str, port: int) -> tuple[subprocess.Popen[str], st
     while time.monotonic() < deadline:
         line = process.stdout.readline() if process.stdout else ""
         if line:
-            print(line, end="")
+            print(line, end="", flush=True)
             lines.append(line)
             match = TUNNEL_URL_PATTERN.search(line)
             if match:
@@ -135,7 +135,7 @@ def pipe_output(process: subprocess.Popen[str]) -> None:
         return
 
     for line in process.stdout:
-        print(line, end="")
+        print(line, end="", flush=True)
 
 
 def start_server(dotnet: str, port: int, public_url: str, build: bool) -> subprocess.Popen[str]:
@@ -150,6 +150,9 @@ def start_server(dotnet: str, port: int, public_url: str, build: bool) -> subpro
 
     env = os.environ.copy()
     env["App__PublicBaseUrl"] = public_url
+    env.setdefault("ASPNETCORE_ENVIRONMENT", "Development")
+    env.setdefault("DOTNET_ENVIRONMENT", "Development")
+    env.setdefault("PYTHONUNBUFFERED", "1")
 
     command = [dotnet, "run", "--no-build", "--no-launch-profile", "--urls", f"http://0.0.0.0:{port}"]
     return subprocess.Popen(command, cwd=ROOT, env=env)
@@ -165,13 +168,13 @@ def main() -> int:
     dotnet = find_dotnet()
     cloudflared = find_or_install_cloudflared(args.cloudflared)
 
-    print("Creating public tunnel...")
+    print("Creating public tunnel...", flush=True)
     tunnel_process, public_url = start_tunnel(cloudflared, args.port)
     save_public_url(public_url)
 
-    print(f"\nPublic URL: {public_url}")
-    print(f"Saved to: {PUBLIC_URL_FILE}")
-    print("Starting ASP.NET with App__PublicBaseUrl adjusted to the public URL...")
+    print(f"\nPublic URL: {public_url}", flush=True)
+    print(f"Saved to: {PUBLIC_URL_FILE}", flush=True)
+    print("Starting ASP.NET with App__PublicBaseUrl adjusted to the public URL...", flush=True)
 
     server_process: subprocess.Popen[str] | None = None
     try:
@@ -179,16 +182,16 @@ def main() -> int:
         local_url = f"http://localhost:{args.port}"
 
         if wait_until_ready(local_url):
-            print(f"Ready locally: {local_url}")
-            print(f"Ready publicly: {public_url}")
+            print(f"Ready locally: {local_url}", flush=True)
+            print(f"Ready publicly: {public_url}", flush=True)
             if not args.no_browser:
                 webbrowser.open(public_url)
         else:
-            print("Server did not respond before the readiness timeout.", file=sys.stderr)
+            print("Server did not respond before the readiness timeout.", file=sys.stderr, flush=True)
 
         return server_process.wait()
     except KeyboardInterrupt:
-        print("\nStopping public server...")
+        print("\nStopping public server...", flush=True)
         return 0
     finally:
         for process in (server_process, tunnel_process):

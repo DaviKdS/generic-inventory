@@ -21,14 +21,22 @@
     })();
   </script>
   <link rel="stylesheet" href="/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script defer src="/app.js"></script>
 </head>
 <body>
   <main id="authGate" class="auth-gate">
     <section class="auth-panel">
       <div class="auth-brand-row">
-        <strong class="brand-text">Controle de Estoque</strong>
-        <button class="button ghost theme-toggle" type="button" data-theme-toggle title="Alternar tema" aria-label="Alternar tema">Tema</button>
+        <strong class="brand-mark" aria-label="Controle de Estoque">GI</strong>
+        <div class="auth-actions">
+          <button class="icon-button ghost language-toggle" type="button" data-language-toggle title="Switch to English" aria-label="Switch to English">
+            <i data-lucide="languages"></i>
+          </button>
+          <button class="icon-button ghost theme-toggle" type="button" data-theme-toggle title="Alternar tema" aria-label="Alternar tema">
+            <i data-lucide="moon"></i>
+          </button>
+        </div>
       </div>
       <div>
         <h1>Controle de Estoque</h1>
@@ -91,11 +99,14 @@
   <section id="appShell" class="app-shell hidden">
     <aside class="sidebar">
       <div class="sidebar-brand">
+        <strong class="brand-mark compact" aria-label="Controle de Estoque">GI</strong>
         <div>
           <strong>Estoque</strong>
           <span>Controle geral</span>
         </div>
-        <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Recolher menu" title="Recolher menu">Menu</button>
+        <button id="sidebarToggle" class="icon-button ghost sidebar-toggle" type="button" aria-label="Recolher menu" title="Recolher menu">
+          <i data-lucide="panel-left-close"></i>
+        </button>
       </div>
       <nav id="navMenu" class="nav-menu"></nav>
     </aside>
@@ -111,6 +122,7 @@
 
       <section id="toast" class="toast hidden"></section>
       <section id="content" class="content"></section>
+      <footer id="siteFooter" class="site-footer"></footer>
     </div>
   </section>
 </body>
