@@ -36,6 +36,7 @@ Esta versão beta inclui um perfil `Developer`, acima do `Administrador`, para v
 - E-mail: `dev@email.com`
 - Senha temporária: `191220023`
 - Permissão exclusiva: importação de catálogo por XLSX, CSV ou PDF pesquisável.
+- No ambiente de testes, o bootstrap restaura esse acesso Developer para a senha temporária padrão ao iniciar, corrigindo contas locais antigas com senha divergente.
 
 Troque credenciais temporárias antes de usar o serviço em produção.
 
@@ -71,8 +72,9 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Envio de lembrete por Power Automate HTTP quando configurado.
 - Fallback por SMTP quando `Smtp__Host` estiver configurado.
 - Sem Power Automate e sem SMTP, alertas ficam registrados em log local dentro de `App_Data`.
-- Tema claro/escuro com preferencia salva no navegador.
+- Tema claro/escuro com preferência salva no navegador.
 - Navegação interna com documentação, releases e suporte básico PT/EN.
+- Revisão de textos visíveis em português e correção do login Developer padrão.
 
 ## Próxima Atualização
 

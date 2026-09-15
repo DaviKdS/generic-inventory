@@ -46,15 +46,15 @@ public class MovementsService
     {
         if (request.Quantity < 1 || request.Quantity > 1000)
         {
-            throw new InvalidOperationException("A quantidade deve ser um numero entre 1 e 1000.");
+            throw new InvalidOperationException("A quantidade deve ser um número entre 1 e 1000.");
         }
 
         var product = await _db.Products.FirstOrDefaultAsync(item => item.Code == request.ProductCode.Trim(), cancellationToken)
-            ?? throw new KeyNotFoundException("Produto nao encontrado.");
+            ?? throw new KeyNotFoundException("Produto não encontrado.");
 
         if (type == StockOut && request.Quantity > product.CurrentStock)
         {
-            throw new InvalidOperationException("Estoque insuficiente para esta saida.");
+            throw new InvalidOperationException("Estoque insuficiente para esta saída.");
         }
 
         var employee = request.EmployeeId is > 0

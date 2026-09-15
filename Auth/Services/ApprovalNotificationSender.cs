@@ -41,13 +41,13 @@ public class ApprovalNotificationSender : IApprovalNotifier
     {
         var subject = "Controle de Estoque - novo cadastro pendente";
         var body = $"""
-            Novo cadastro aguardando aprovacao.
+            Novo cadastro aguardando aprovação.
 
             Nome: {user.Name}
             E-mail: {user.Email}
             Criado em UTC: {user.CreatedAt:O}
 
-            Painel de aprovacoes: {BuildPanelUrl(user.Id)}
+            Painel de aprovações: {BuildPanelUrl(user.Id)}
             """;
 
         if (await TrySendPowerAutomateAsync("access.requested", user, approvalToken, subject, body, cancellationToken))
@@ -62,7 +62,7 @@ public class ApprovalNotificationSender : IApprovalNotifier
     {
         var subject = "Controle de Estoque - acesso aprovado";
         var body = $"""
-            Ola, {user.Name}.
+            Olá, {user.Name}.
 
             Seu acesso ao Controle de Estoque foi aprovado.
             Acesse: {BuildAccessUrl()}
@@ -79,11 +79,11 @@ public class ApprovalNotificationSender : IApprovalNotifier
     public async Task SendAccessRejectedAsync(UserAccessRecord user, CancellationToken cancellationToken = default)
     {
         var reason = string.IsNullOrWhiteSpace(user.RejectionReason)
-            ? "Sem observacao adicional."
+            ? "Sem observação adicional."
             : user.RejectionReason;
         var subject = "Controle de Estoque - cadastro recusado";
         var body = $"""
-            Ola, {user.Name}.
+            Olá, {user.Name}.
 
             Seu pedido de acesso ao Controle de Estoque foi recusado.
             Motivo: {reason}
@@ -102,25 +102,25 @@ public class ApprovalNotificationSender : IApprovalNotifier
         var passwordUrl = BuildPasswordUrl(user.Id, passwordToken);
         var intro = reason switch
         {
-            PasswordSetupReason.Bootstrap => "Sua conta administradora do Controle de Estoque esta pronta.",
+            PasswordSetupReason.Bootstrap => "Sua conta administradora do Controle de Estoque está pronta.",
             PasswordSetupReason.Invite => "Um administrador liberou seu acesso ao Controle de Estoque.",
             _ => "Recebemos um pedido para redefinir sua senha do Controle de Estoque."
         };
 
         var subject = reason == PasswordSetupReason.Reset
-            ? "Controle de Estoque - redefinicao de senha"
+            ? "Controle de Estoque - redefinição de senha"
             : "Controle de Estoque - defina sua senha";
 
         var body = $"""
-            Ola, {user.Name}.
+            Olá, {user.Name}.
 
             {intro}
             Perfil de acesso: {AccessRoleCatalog.Find(user.Role)?.Label ?? user.Role}
 
-            Defina sua senha por este link de uso unico:
+            Defina sua senha por este link de uso único:
             {passwordUrl}
 
-            O link vale por {Math.Max(1, _authOptions.PasswordTokenHours)} hora(s). Se voce nao pediu, ignore esta mensagem.
+            O link vale por {Math.Max(1, _authOptions.PasswordTokenHours)} hora(s). Se você não pediu, ignore esta mensagem.
             """;
 
         if (await TrySendPowerAutomateAsync($"access.password.{reason}", user, string.Empty, subject, body, cancellationToken, passwordUrl))
@@ -136,7 +136,7 @@ public class ApprovalNotificationSender : IApprovalNotifier
         var role = AccessRoleCatalog.Find(user.Role);
         var subject = "Controle de Estoque - perfil de acesso atualizado";
         var body = $"""
-            Ola, {user.Name}.
+            Olá, {user.Name}.
 
             Seu perfil no Controle de Estoque mudou de {previousRole} para {user.Role}.
             {role?.Description ?? string.Empty}
@@ -325,7 +325,7 @@ public class ApprovalNotificationSender : IApprovalNotifier
             : $"{baseUrl}/api/auth/approvals/{Uri.EscapeDataString(userId)}/decision";
     }
 
-    /// <summary>Link de uso unico para a tela de definicao de senha. So trafega por e-mail.</summary>
+    /// <summary>Link de uso único para a tela de definição de senha. Só trafega por e-mail.</summary>
     private string BuildPasswordUrl(string userId, string passwordToken)
     {
         if (string.IsNullOrWhiteSpace(passwordToken))

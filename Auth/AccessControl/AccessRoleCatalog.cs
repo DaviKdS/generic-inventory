@@ -10,7 +10,7 @@ public static class AccessRoleCatalog
     public const string Admin = "admin";
     public const string Standard = "standard";
 
-    /// <summary>Papel atribuido a quem apenas solicitou acesso; nao concede nada ate a aprovacao.</summary>
+    /// <summary>Papel atribuído a quem apenas solicitou acesso; não concede nada até a aprovação.</summary>
     public const string DefaultRole = Standard;
 
     private static readonly IReadOnlyList<AccessRole> Catalog = new List<AccessRole>
@@ -20,7 +20,7 @@ public static class AccessRoleCatalog
             Name = Developer,
             Level = 1000,
             Label = "Developer",
-            Description = "Acesso tecnico total: define perfis, telas, catalogo, importacoes e administracao do sistema.",
+            Description = "Acesso técnico total: define perfis, telas, catálogo, importações e administração do sistema.",
             Permissions = Set(AccessPermissions.All.ToArray())
         },
         new()
@@ -28,7 +28,7 @@ public static class AccessRoleCatalog
             Name = Admin,
             Level = 100,
             Label = "Administrador",
-            Description = "Gerencia acessos, produtos, funcionarios, movimentacoes e lembretes de estoque.",
+            Description = "Gerencia acessos, produtos, funcionários, movimentações e lembretes de estoque.",
             Permissions = Set(
                 AccessPermissions.AccessManage,
                 AccessPermissions.StockRead,
@@ -41,8 +41,8 @@ public static class AccessRoleCatalog
         {
             Name = Standard,
             Level = 10,
-            Label = "Padrao",
-            Description = "Consulta estoque e registra entradas e saidas.",
+            Label = "Padrão",
+            Description = "Consulta estoque e registra entradas e saídas.",
             Permissions = Set(
                 AccessPermissions.StockRead,
                 AccessPermissions.StockMove)

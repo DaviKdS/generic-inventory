@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace GenericInventory.Auth.AccessControl;
 
 /// <summary>
-/// Exige uma permissao nomeada do catalogo de papeis.
+/// Exige uma permissão nomeada do catálogo de papéis.
 /// </summary>
 public sealed class AccessPermissionRequirement : IAuthorizationRequirement
 {

@@ -5,8 +5,8 @@ namespace GenericInventory.Auth.AccessControl;
 public static class AccessControlExtensions
 {
     /// <summary>
-    /// Registra uma policy por permissao do catalogo. Os controllers passam a declarar a permissao
-    /// exigida em vez de um papel fixo, entao mudar a matriz nao exige mexer em cada endpoint.
+    /// Registra uma policy por permissão do catálogo. Os controllers passam a declarar a permissão
+    /// exigida em vez de um papel fixo, então mudar a matriz não exige mexer em cada endpoint.
     /// </summary>
     public static IServiceCollection AddAccessControl(this IServiceCollection services)
     {
@@ -19,7 +19,7 @@ public static class AccessControlExtensions
                 options.AddPolicy(permission, policy => policy.AddRequirements(new AccessPermissionRequirement(permission)));
             }
 
-            // Nome historico da policy, mantido para nao quebrar endpoints e testes existentes.
+            // Nome histórico da policy, mantido para não quebrar endpoints e testes existentes.
             options.AddPolicy(AccessRoleCatalog.Admin, policy =>
                 policy.AddRequirements(new AccessPermissionRequirement(AccessPermissions.AccessManage)));
         });

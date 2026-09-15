@@ -11,7 +11,7 @@ namespace GenericInventory.Auth.Controllers;
 
 /// <summary>
 /// Painel de distribuicao de acessos. Todo o controller exige a permissao access.manage,
-/// que no catalogo pertence somente ao papel de administrador.
+/// que no catálogo pertence somente ao papel de administrador.
 /// </summary>
 [ApiController]
 [Authorize(Policy = AccessPermissions.AccessManage)]
@@ -173,14 +173,14 @@ public class AccessController : ControllerBase
     {
         if (file.Length == 0 || !string.Equals(Path.GetExtension(file.FileName), ".zip", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest(new { message = "Selecione um arquivo ZIP valido." });
+            return BadRequest(new { message = "Selecione um arquivo ZIP válido." });
         }
 
         try
         {
             await using var stream = file.OpenReadStream();
             await _databaseTransferService.ImportAsync(stream, cancellationToken);
-            return Ok(new { message = "Banco de dados importado com sucesso. Atualize a pagina." });
+            return Ok(new { message = "Banco de dados importado com sucesso. Atualize a página." });
         }
         catch (InvalidOperationException ex)
         {
@@ -200,7 +200,7 @@ public class AccessController : ControllerBase
         return await ExecuteAsync(() => _userAccessService.RejectAsync(id, ActingUser, request.Reason, cancellationToken));
     }
 
-    /// <summary>E-mail de quem esta operando; e o que vai para os campos de auditoria.</summary>
+    /// <summary>E-mail de quem está operando; é o que vai para os campos de auditoria.</summary>
     private string ActingUser =>
         User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? AccessRoleCatalog.Admin;
 

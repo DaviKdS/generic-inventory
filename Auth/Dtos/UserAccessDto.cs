@@ -13,7 +13,7 @@ public class UserAccessDto
     public string Status { get; set; } = AccessStatus.Pending;
     public string Origin { get; set; } = AccessOrigin.SelfService;
 
-    /// <summary>Verdadeiro enquanto o convite de senha nao foi concluido.</summary>
+    /// <summary>Verdadeiro enquanto o convite de senha não foi concluído.</summary>
     public bool MustDefinePassword { get; set; }
 
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();

@@ -8,7 +8,7 @@ public interface IApprovalNotifier
     Task SendAccessApprovedAsync(UserAccessRecord user, CancellationToken cancellationToken = default);
     Task SendAccessRejectedAsync(UserAccessRecord user, CancellationToken cancellationToken = default);
 
-    /// <summary>Envia o link de uso unico para o usuario definir ou redefinir a propria senha.</summary>
+    /// <summary>Envia o link de uso único para o usuário definir ou redefinir a própria senha.</summary>
     Task SendPasswordSetupAsync(UserAccessRecord user, string passwordToken, string reason, CancellationToken cancellationToken = default);
 
     /// <summary>Avisa o usuario que o papel dele mudou.</summary>

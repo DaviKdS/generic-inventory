@@ -146,7 +146,7 @@ public class StockWorkflowIntegrationTests : IClassFixture<TestWebApplicationFac
         Assert.NotNull(status);
         Assert.False(status!.SmtpConfigured);
         Assert.Equal("log", status.Channel);
-        Assert.Contains("SMTP nao configurado", status.Message);
+        Assert.Contains("SMTP não configurado", status.Message);
     }
 
     [Fact]

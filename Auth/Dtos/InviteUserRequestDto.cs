@@ -4,8 +4,8 @@ using GenericInventory.Auth.AccessControl;
 namespace GenericInventory.Auth.Dtos;
 
 /// <summary>
-/// Criacao de acesso pelo administrador. Nao aceita senha:
-/// o convidado recebe um link de uso unico por e-mail e define a propria senha.
+/// Criação de acesso pelo administrador. Não aceita senha:
+/// o convidado recebe um link de uso único por e-mail e define a própria senha.
 /// </summary>
 public class InviteUserRequestDto
 {

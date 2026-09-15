@@ -510,7 +510,7 @@
     stopSessionSync();
     state.sessionSyncTimer = window.setInterval(() => {
       syncSessionState().catch(() => {
-        // A proxima sincronizacao tenta de novo; erros autenticados seguem pelo fluxo normal do json().
+        // A próxima sincronização tenta de novo; erros autenticados seguem pelo fluxo normal do json().
       });
     }, 10000);
   }
@@ -902,8 +902,8 @@
           ${input("Destinatários", "recipients", draft.recipients || "", true)}
           ${input("Assunto", "subject", draft.subject || "Alerta de Estoque Baixo", true)}
           <label><span>Mensagem</span><textarea name="messageTemplate">${escapeHtml(draft.messageTemplate || "Estoque baixo\n\n{Products}\n\nGerado em: {GeneratedAt}")}</textarea></label>
-          <label><span>Limite</span><select name="useProductMinimum"><option value="true" ${draft.useProductMinimum !== false ? "selected" : ""}>Estoque minimo do produto</option><option value="false" ${draft.useProductMinimum === false ? "selected" : ""}>Limite unico abaixo</option></select></label>
-          ${input("Limite unico", "thresholdQuantity", draft.thresholdQuantity ?? "", false, "number")}
+          <label><span>Limite</span><select name="useProductMinimum"><option value="true" ${draft.useProductMinimum !== false ? "selected" : ""}>Estoque mínimo do produto</option><option value="false" ${draft.useProductMinimum === false ? "selected" : ""}>Limite único abaixo</option></select></label>
+          ${input("Limite único", "thresholdQuantity", draft.thresholdQuantity ?? "", false, "number")}
           <label><span>Itens incluídos nesta regra</span><textarea name="productCodesCsv" placeholder="Vazio = todos no alerta diário">${escapeHtml(draft.productCodesCsv || "")}</textarea></label>
           <label><span>Disparar ao movimentar</span><select name="triggerOnMovement"><option value="true" ${draft.triggerOnMovement !== false ? "selected" : ""}>Sim, somente o item movimentado</option><option value="false" ${draft.triggerOnMovement === false ? "selected" : ""}>Não, somente no horário diário</option></select></label>
           <input type="hidden" name="includeProductImages" value="false">
@@ -1296,6 +1296,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.4-beta</span>
+            <h2>${state.language === "en" ? "Developer login hotfix and Portuguese review" : "Correção do login Developer e revisão de português"}</h2>
+            <p>${state.language === "en"
+              ? "Restores the default Developer test password during bootstrap when an old local account has a stale password, and refreshes visible Portuguese messages across the service."
+              : "Restaura a senha padrão de teste do Developer durante o bootstrap quando uma conta local antiga tem senha divergente, e revisa mensagens visíveis em português no serviço."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.3-beta</span>

@@ -42,7 +42,7 @@ public interface IUserAccessService
     /// <summary>Permite ao Developer definir ou substituir a senha de um usuario diretamente.</summary>
     Task<UserAccessDto> SetPasswordByDeveloperAsync(string id, string password, string changedBy, CancellationToken cancellationToken = default);
 
-    /// <summary>Dispara o link de senha a pedido do proprio usuario. Nunca revela se o e-mail existe.</summary>
+    /// <summary>Dispara o link de senha a pedido do próprio usuário. Nunca revela se o e-mail existe.</summary>
     Task RequestPasswordLinkAsync(string email, CancellationToken cancellationToken = default);
 
     Task<UserAccessDto> ResetPasswordAsync(string id, PasswordResetRequestDto request, CancellationToken cancellationToken = default);

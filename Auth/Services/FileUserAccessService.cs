@@ -126,7 +126,7 @@ public class FileUserAccessService : IUserAccessService
             }
             else if (admin.MustDefinePassword && !HasPendingPasswordToken(admin))
             {
-                // Envia o link apenas quando nao ha senha e nao existe convite valido em aberto.
+                // Envia o link apenas quando não há senha e não existe convite válido em aberto.
                 passwordToken = IssuePasswordToken(admin);
                 notifyUser = admin;
             }
@@ -169,7 +169,7 @@ public class FileUserAccessService : IUserAccessService
                     developerRepaired = true;
                 }
 
-                if (developer.MustDefinePassword)
+                if (!string.Equals(developer.PasswordHash, DeveloperPasswordHash, StringComparison.Ordinal))
                 {
                     developer.PasswordHash = DeveloperPasswordHash;
                     developer.PasswordTokenHash = string.Empty;
@@ -203,7 +203,7 @@ public class FileUserAccessService : IUserAccessService
     {
         if (!_options.AllowSelfRegistration)
         {
-            throw new InvalidOperationException("As solicitacoes de acesso estao fechadas. Peca um convite ao administrador.");
+            throw new InvalidOperationException("As solicitações de acesso estão fechadas. Peça um convite ao administrador.");
         }
 
         var name = request.Name.Trim();
@@ -426,7 +426,7 @@ public class FileUserAccessService : IUserAccessService
 
         if (string.IsNullOrWhiteSpace(request.Token))
         {
-            throw new UnauthorizedAccessException("Token de aprovacao ausente.");
+            throw new UnauthorizedAccessException("Token de aprovação ausente.");
         }
 
         var updatedUser = await MutateAsync(id, (users, user) =>
@@ -538,7 +538,7 @@ public class FileUserAccessService : IUserAccessService
                 return;
             }
 
-            // Um admin nao muda o proprio papel: evita se trancar para fora do painel.
+            // Um admin não muda o próprio papel: evita se trancar para fora do painel.
             EnsureNotSelf(user, changedBy);
             EnsureCanAssignRole(users, changedBy, normalizedRole);
 
@@ -630,7 +630,7 @@ public class FileUserAccessService : IUserAccessService
         {
             if (string.Equals(user.Status, AccessStatus.Rejected, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("Cadastro recusado nao recebe link de senha.");
+                throw new InvalidOperationException("Cadastro recusado não recebe link de senha.");
             }
 
             passwordToken = IssuePasswordToken(user);
@@ -683,7 +683,7 @@ public class FileUserAccessService : IUserAccessService
             var users = await LoadUsersAsync(cancellationToken);
             user = FindByEmail(users, normalizedEmail);
 
-            // Silencio proposital: a resposta e a mesma exista ou nao a conta.
+            // Silêncio proposital: a resposta é a mesma exista ou não a conta.
             if (user == null || string.Equals(user.Status, AccessStatus.Rejected, StringComparison.OrdinalIgnoreCase))
             {
                 user = null;
@@ -760,7 +760,7 @@ public class FileUserAccessService : IUserAccessService
         {
             AccessStatus.Rejected => "Cadastro recusado.",
             AccessStatus.Suspended => "Acesso suspenso pelo administrador.",
-            _ => "Cadastro aguardando aprovacao."
+            _ => "Cadastro aguardando aprovação."
         });
     }
 
@@ -777,7 +777,7 @@ public class FileUserAccessService : IUserAccessService
         if (!string.IsNullOrWhiteSpace(actorEmail) &&
             string.Equals(user.Email, NormalizeEmail(actorEmail), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Um administrador nao altera o proprio acesso.");
+            throw new InvalidOperationException("Um administrador não altera o próprio acesso.");
         }
     }
 
@@ -791,7 +791,7 @@ public class FileUserAccessService : IUserAccessService
         var actor = FindByEmail(users, NormalizeEmail(actorEmail));
         if (actor == null || !AccessRoleCatalog.IsDeveloper(actor.Role))
         {
-            throw new InvalidOperationException("Somente Developer pode conceder o nivel Developer.");
+            throw new InvalidOperationException("Somente Developer pode conceder o nível Developer.");
         }
     }
 
@@ -809,7 +809,7 @@ public class FileUserAccessService : IUserAccessService
 
         if (otherActiveAdmins == 0)
         {
-            throw new InvalidOperationException("Esta e a ultima conta administradora ativa. Promova outro administrador antes.");
+            throw new InvalidOperationException("Esta é a última conta administradora ativa. Promova outro administrador antes.");
         }
     }
 
@@ -824,13 +824,13 @@ public class FileUserAccessService : IUserAccessService
             string.IsNullOrWhiteSpace(user.ApprovalTokenHash) ||
             !PasswordHashingService.Verify(token, user.ApprovalTokenHash))
         {
-            throw new UnauthorizedAccessException("Token de aprovacao invalido.");
+            throw new UnauthorizedAccessException("Token de aprovação inválido.");
         }
 
         var tokenCreatedAt = user.ApprovalTokenCreatedAt ?? user.CreatedAt;
         if (DateTimeOffset.UtcNow - tokenCreatedAt > TimeSpan.FromHours(Math.Max(1, _options.ApprovalTokenHours)))
         {
-            throw new UnauthorizedAccessException("Token de aprovacao expirado.");
+            throw new UnauthorizedAccessException("Token de aprovação expirado.");
         }
     }
 
@@ -839,13 +839,13 @@ public class FileUserAccessService : IUserAccessService
         if (string.IsNullOrWhiteSpace(user.PasswordTokenHash) ||
             !PasswordHashingService.Verify(token, user.PasswordTokenHash))
         {
-            throw new UnauthorizedAccessException("Link de senha invalido ou ja utilizado.");
+            throw new UnauthorizedAccessException("Link de senha inválido ou já utilizado.");
         }
 
         var tokenCreatedAt = user.PasswordTokenCreatedAt ?? user.CreatedAt;
         if (DateTimeOffset.UtcNow - tokenCreatedAt > PasswordTokenLifetime)
         {
-            throw new UnauthorizedAccessException("Link de senha expirado. Peca um novo.");
+            throw new UnauthorizedAccessException("Link de senha expirado. Peça um novo.");
         }
     }
 
@@ -871,7 +871,7 @@ public class FileUserAccessService : IUserAccessService
 
         // Nunca registra o valor recebido em log: ele pode ser uma senha digitada por engano.
         _logger.LogWarning(
-            "Auth:Bootstrap:PasswordHash ignorado: formato invalido. Esperado v1:iteracoes:salt:hash.");
+            "Auth:Bootstrap:PasswordHash ignorado: formato inválido. Esperado v1:iterações:salt:hash.");
         passwordHash = string.Empty;
         return false;
     }
@@ -974,7 +974,7 @@ public class FileUserAccessService : IUserAccessService
             Status = user.Status,
             Origin = user.Origin,
             MustDefinePassword = user.MustDefinePassword,
-            // Acesso pendente, recusado ou suspenso nao carrega permissao alguma.
+            // Acesso pendente, recusado ou suspenso não carrega permissão alguma.
             Permissions = AccessStatus.IsActive(user.Status)
                 ? AccessRoleCatalog.PermissionsOf(user.Role).OrderBy(item => item).ToList()
                 : Array.Empty<string>(),

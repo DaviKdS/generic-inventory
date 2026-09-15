@@ -53,7 +53,7 @@ public class StockReminderService
                 ? "Power Automate configurado para um ou mais gatilhos de alerta."
                 : smtpConfigured
                 ? "Envio real por SMTP ativo."
-                : "SMTP nao configurado; os alertas serao registrados no log local.",
+                : "SMTP não configurado; os alertas serão registrados no log local.",
             FallbackPath = Path.Combine("App_Data", "stock-reminders.log")
         };
     }
@@ -233,11 +233,11 @@ public class StockReminderService
 
         if (result.Logged)
         {
-            return "SMTP nao configurado; alerta registrado no log local.";
+            return "SMTP não configurado; alerta registrado no log local.";
         }
 
         return string.IsNullOrWhiteSpace(result.Detail)
-            ? "Alerta nao enviado."
+            ? "Alerta não enviado."
             : result.Detail;
     }
 
@@ -355,14 +355,14 @@ public class StockReminderService
     private async Task<ReminderRule> FindRuleAsync(int id, CancellationToken cancellationToken)
     {
         return await _db.ReminderRules.FirstOrDefaultAsync(rule => rule.Id == id, cancellationToken)
-            ?? throw new KeyNotFoundException("Lembrete nao encontrado.");
+            ?? throw new KeyNotFoundException("Lembrete não encontrado.");
     }
 
     private static void Apply(ReminderRule rule, ReminderRuleFormDto form)
     {
         if (!TimeSpan.TryParse(form.DailyTime, out _))
         {
-            throw new InvalidOperationException("Horario diario invalido. Use HH:mm.");
+            throw new InvalidOperationException("Horário diário inválido. Use HH:mm.");
         }
 
         rule.Name = string.IsNullOrWhiteSpace(form.Name) ? "Alerta de estoque baixo" : form.Name.Trim();

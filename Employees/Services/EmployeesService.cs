@@ -38,7 +38,7 @@ public class EmployeesService
         var registration = form.Registration.Trim();
         if (await _db.Employees.AnyAsync(employee => employee.Registration == registration, cancellationToken))
         {
-            throw new InvalidOperationException("Ja existe funcionario com esta matricula.");
+            throw new InvalidOperationException("Já existe funcionário com esta matrícula.");
         }
 
         var employee = new Employee();
@@ -56,7 +56,7 @@ public class EmployeesService
         if (!string.Equals(employee.Registration, registration, StringComparison.OrdinalIgnoreCase) &&
             await _db.Employees.AnyAsync(item => item.Registration == registration, cancellationToken))
         {
-            throw new InvalidOperationException("Ja existe funcionario com esta matricula.");
+            throw new InvalidOperationException("Já existe funcionário com esta matrícula.");
         }
 
         Apply(employee, form);
@@ -74,19 +74,19 @@ public class EmployeesService
     private async Task<Employee> FindAsync(int id, CancellationToken cancellationToken)
     {
         return await _db.Employees.FirstOrDefaultAsync(employee => employee.Id == id, cancellationToken)
-            ?? throw new KeyNotFoundException("Funcionario nao encontrado.");
+            ?? throw new KeyNotFoundException("Funcionário não encontrado.");
     }
 
     private static void Validate(EmployeeFormDto form)
     {
         if (string.IsNullOrWhiteSpace(form.Name))
         {
-            throw new InvalidOperationException("Informe o nome do funcionario.");
+            throw new InvalidOperationException("Informe o nome do funcionário.");
         }
 
         if (string.IsNullOrWhiteSpace(form.Registration))
         {
-            throw new InvalidOperationException("Informe a matricula do funcionario.");
+            throw new InvalidOperationException("Informe a matrícula do funcionário.");
         }
     }
 

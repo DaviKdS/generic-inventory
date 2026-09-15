@@ -28,7 +28,7 @@ public sealed class DatabaseTransferService
         var authPath = GetAuthPath();
         if (!File.Exists(databasePath))
         {
-            throw new InvalidOperationException("O banco de dados ainda nao foi criado.");
+            throw new InvalidOperationException("O banco de dados ainda não foi criado.");
         }
 
         var temporaryDatabasePath = Path.Combine(Path.GetTempPath(), $"generic-inventory-export-{Guid.NewGuid():N}.db");
@@ -59,7 +59,7 @@ public sealed class DatabaseTransferService
         catch (SqliteException ex)
         {
             _logger.LogError(ex, "Falha ao exportar o banco SQLite em {DatabasePath}.", databasePath);
-            throw new InvalidOperationException("Nao foi possivel criar o snapshot do banco de dados.", ex);
+            throw new InvalidOperationException("Não foi possível criar o snapshot do banco de dados.", ex);
         }
         finally
         {
@@ -72,10 +72,10 @@ public sealed class DatabaseTransferService
     {
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: false);
         var databaseEntry = archive.GetEntry(DatabaseEntryName)
-            ?? throw new InvalidOperationException("O ZIP nao contem database.db.");
+            ?? throw new InvalidOperationException("O ZIP não contém database.db.");
         if (databaseEntry.Length == 0)
         {
-            throw new InvalidOperationException("O arquivo database.db esta vazio.");
+            throw new InvalidOperationException("O arquivo database.db está vazio.");
         }
 
         var temporaryDatabasePath = Path.Combine(Path.GetTempPath(), $"generic-inventory-import-{Guid.NewGuid():N}.db");
@@ -140,7 +140,7 @@ public sealed class DatabaseTransferService
         var result = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken));
         if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("O banco de dados do ZIP esta corrompido.");
+            throw new InvalidOperationException("O banco de dados do ZIP está corrompido.");
         }
     }
 

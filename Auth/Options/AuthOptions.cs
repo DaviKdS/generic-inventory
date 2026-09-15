@@ -10,7 +10,7 @@ public class AuthOptions
     public int SessionHours { get; set; } = 8;
     public int ApprovalTokenHours { get; set; } = 72;
 
-    /// <summary>Validade do link de definicao/redefinicao de senha enviado por e-mail.</summary>
+    /// <summary>Validade do link de definição/redefinição de senha enviado por e-mail.</summary>
     public int PasswordTokenHours { get; set; } = 24;
 
     /// <summary>

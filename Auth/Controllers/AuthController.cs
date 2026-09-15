@@ -90,7 +90,7 @@ public class AuthController : ControllerBase
             var user = await _userAccessService.ValidateLoginAsync(request, cancellationToken);
             if (user == null)
             {
-                return Unauthorized(new { message = "E-mail ou senha invalidos." });
+                return Unauthorized(new { message = "E-mail ou senha inválidos." });
             }
 
             await SignInAsync(user);
@@ -126,18 +126,18 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Pede um link de definicao de senha. Responde sempre igual, exista ou nao a conta,
-    /// para nao permitir descobrir e-mails cadastrados.
+    /// Pede um link de definição de senha. Responde sempre igual, exista ou não a conta,
+    /// para não permitir descobrir e-mails cadastrados.
     /// </summary>
     [AllowAnonymous]
     [HttpPost("password/forgot")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request, CancellationToken cancellationToken)
     {
         await _userAccessService.RequestPasswordLinkAsync(request.Email, cancellationToken);
-        return Accepted(new { message = "Se o e-mail estiver cadastrado, o link de senha sera enviado." });
+        return Accepted(new { message = "Se o e-mail estiver cadastrado, o link de senha será enviado." });
     }
 
-    /// <summary>Consome o token de uso unico enviado por e-mail e grava a nova senha.</summary>
+    /// <summary>Consome o token de uso único enviado por e-mail e grava a nova senha.</summary>
     [AllowAnonymous]
     [HttpPost("password/reset/{id}")]
     public async Task<ActionResult<UserAccessDto>> ResetPassword(string id, [FromBody] PasswordResetRequestDto request, CancellationToken cancellationToken)
@@ -161,7 +161,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Decisao vinda do fluxo do Power Automate. Autenticada pelo token de uso unico do cadastro;
+    /// Decisão vinda do fluxo do Power Automate. Autenticada pelo token de uso único do cadastro;
     /// por seguranca, nunca concede o papel de administrador.
     /// </summary>
     [AllowAnonymous]

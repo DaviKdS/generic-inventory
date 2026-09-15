@@ -190,8 +190,8 @@ public class SeedService
     private async Task EnsureDefaultReminderAsync(CancellationToken cancellationToken)
     {
         var oldDefaultRule = await _db.ReminderRules.FirstOrDefaultAsync(rule =>
-            rule.Name == "Estoque minimo"
-            && (rule.Subject == "Alerta de estoque minimo - Controle de Estoque"
+            rule.Name == "Estoque mínimo"
+            && (rule.Subject == "Alerta de estoque mínimo - Controle de Estoque"
                 || rule.Subject == "Alerta de estoque - Controle de Estoque"),
             cancellationToken);
         if (oldDefaultRule != null)

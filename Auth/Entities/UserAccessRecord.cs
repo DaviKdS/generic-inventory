@@ -8,15 +8,15 @@ public class UserAccessRecord
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>Vazio enquanto o usuario ainda nao definiu a senha pelo link enviado por e-mail.</summary>
+    /// <summary>Vazio enquanto o usuário ainda não definiu a senha pelo link enviado por e-mail.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 
-    /// <summary>Token de decisao usado pelo fluxo de aprovacao por e-mail/Teams.</summary>
+    /// <summary>Token de decisão usado pelo fluxo de aprovação por e-mail/Teams.</summary>
     public string ApprovalTokenHash { get; set; } = string.Empty;
     public DateTimeOffset? ApprovalTokenCreatedAt { get; set; }
     public DateTimeOffset? ApprovalTokenUsedAt { get; set; }
 
-    /// <summary>Token de uso unico para definir ou redefinir a senha.</summary>
+    /// <summary>Token de uso único para definir ou redefinir a senha.</summary>
     public string PasswordTokenHash { get; set; } = string.Empty;
     public DateTimeOffset? PasswordTokenCreatedAt { get; set; }
     public DateTimeOffset? PasswordTokenUsedAt { get; set; }

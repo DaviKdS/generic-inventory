@@ -7,7 +7,7 @@ public static class AccessBootstrapper
     /// <summary>
     /// Semeia a conta administradora configurada antes de a aplicacao aceitar requisicoes.
     /// Roda de forma sincrona de proposito: nenhuma requisicao deve ser atendida antes disso.
-    /// Falha aqui nao derruba a aplicacao, apenas registra log.
+    /// Falha aqui não derruba a aplicação, apenas registra log.
     /// </summary>
     public static WebApplication EnsureAccessBootstrap(this WebApplication app)
     {
@@ -24,7 +24,7 @@ public static class AccessBootstrapper
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Nao foi possivel semear a conta administradora.");
+            logger.LogError(ex, "Não foi possível semear a conta administradora.");
         }
 
         return app;

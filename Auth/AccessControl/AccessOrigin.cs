@@ -11,7 +11,7 @@ public static class AccessOrigin
     /// <summary>Conta criada pelo administrador no painel de acessos.</summary>
     public const string Invite = "invite";
 
-    /// <summary>Solicitacao aberta pelo proprio usuario na tela de cadastro.</summary>
+    /// <summary>Solicitação aberta pelo próprio usuário na tela de cadastro.</summary>
     public const string SelfService = "self-service";
 }
 

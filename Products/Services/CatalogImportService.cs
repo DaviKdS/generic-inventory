@@ -52,7 +52,7 @@ public class CatalogImportService
 
         if (string.IsNullOrWhiteSpace(mapping.CodeColumn) || string.IsNullOrWhiteSpace(mapping.DescriptionColumn))
         {
-            throw new InvalidOperationException("Selecione as colunas de codigo e descricao.");
+            throw new InvalidOperationException("Selecione as colunas de código e descrição.");
         }
 
         foreach (var row in rows)
@@ -97,7 +97,7 @@ public class CatalogImportService
 
         if (skipped > 0)
         {
-            warnings.Add($"{skipped} linha(s) ignorada(s) por falta de codigo ou descricao.");
+            warnings.Add($"{skipped} linha(s) ignorada(s) por falta de código ou descrição.");
         }
 
         return new CatalogImportResultDto
@@ -113,7 +113,7 @@ public class CatalogImportService
     {
         if (file.Length == 0)
         {
-            throw new InvalidOperationException("Envie um arquivo com conteudo.");
+            throw new InvalidOperationException("Envie um arquivo com conteúdo.");
         }
 
         await using var stream = file.OpenReadStream();
@@ -127,7 +127,7 @@ public class CatalogImportService
             ".xlsx" => _xlsxReader.ReadRows(bytes),
             ".csv" => ReadDelimitedRows(Encoding.UTF8.GetString(bytes)),
             ".pdf" => ReadDelimitedRows(ExtractPdfText(bytes)),
-            _ => throw new InvalidOperationException("Use XLSX, CSV ou PDF com texto pesquisavel.")
+            _ => throw new InvalidOperationException("Use XLSX, CSV ou PDF com texto pesquisável.")
         };
     }
 

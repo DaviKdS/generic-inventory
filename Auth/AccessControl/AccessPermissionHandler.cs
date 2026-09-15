@@ -16,7 +16,7 @@ public sealed class AccessPermissionHandler : AuthorizationHandler<AccessPermiss
             return Task.CompletedTask;
         }
 
-        // Um acesso suspenso ou recusado mantem o cookie ate a proxima validacao; nao concede nada.
+        // Um acesso suspenso ou recusado mantém o cookie até a próxima validação; não concede nada.
         var status = user.FindFirstValue(AccessClaims.Status);
         if (status != null && !AccessStatus.IsActive(status))
         {

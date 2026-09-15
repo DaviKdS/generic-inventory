@@ -44,17 +44,17 @@ public class ProductsService
         var code = NormalizeCode(form.Code);
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new InvalidOperationException("Informe o codigo do produto.");
+            throw new InvalidOperationException("Informe o código do produto.");
         }
 
         if (string.IsNullOrWhiteSpace(form.Description))
         {
-            throw new InvalidOperationException("Informe a descricao do produto.");
+            throw new InvalidOperationException("Informe a descrição do produto.");
         }
 
         if (await _db.Products.AnyAsync(product => product.Code == code, cancellationToken))
         {
-            throw new InvalidOperationException("Ja existe um produto com este codigo.");
+            throw new InvalidOperationException("Já existe um produto com este código.");
         }
 
         var product = new Product();
@@ -73,7 +73,7 @@ public class ProductsService
         if (!string.Equals(product.Code, nextCode, StringComparison.OrdinalIgnoreCase) &&
             await _db.Products.AnyAsync(item => item.Code == nextCode, cancellationToken))
         {
-            throw new InvalidOperationException("Ja existe um produto com este codigo.");
+            throw new InvalidOperationException("Já existe um produto com este código.");
         }
 
         Apply(product, form, nextCode);
@@ -92,7 +92,7 @@ public class ProductsService
     {
         var normalized = NormalizeCode(code);
         return await _db.Products.FirstOrDefaultAsync(product => product.Code == normalized, cancellationToken)
-            ?? throw new KeyNotFoundException("Produto nao encontrado.");
+            ?? throw new KeyNotFoundException("Produto não encontrado.");
     }
 
     private static void Apply(Product product, ProductFormDto form, string code)

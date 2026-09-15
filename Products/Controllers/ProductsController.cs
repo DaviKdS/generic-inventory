@@ -49,7 +49,7 @@ public class ProductsController : ControllerBase
     {
         if (file.Length == 0)
         {
-            return BadRequest(new { message = "Envie uma imagem valida." });
+            return BadRequest(new { message = "Envie uma imagem válida." });
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -107,7 +107,7 @@ public class ProductsController : ControllerBase
         }
         catch (JsonException)
         {
-            return BadRequest(new { message = "Mapeamento de importacao invalido." });
+            return BadRequest(new { message = "Mapeamento de importação inválido." });
         }
     }
 

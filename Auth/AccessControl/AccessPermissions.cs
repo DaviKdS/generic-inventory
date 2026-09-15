@@ -29,10 +29,10 @@ public static class AccessPermissions
     {
         [AccessManage] = "Distribuir acessos",
         [StockRead] = "Consultar estoque",
-        [StockMove] = "Registrar entradas e saidas",
+        [StockMove] = "Registrar entradas e saídas",
         [ProductsManage] = "Gerenciar produtos",
-        [CatalogImport] = "Importar catalogo",
-        [EmployeesManage] = "Gerenciar funcionarios",
+        [CatalogImport] = "Importar catálogo",
+        [EmployeesManage] = "Gerenciar funcionários",
         [RemindersManage] = "Gerenciar lembretes"
     };
 

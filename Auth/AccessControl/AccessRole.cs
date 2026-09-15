@@ -1,7 +1,7 @@
 namespace GenericInventory.Auth.AccessControl;
 
 /// <summary>
-/// Um degrau da hierarquia de acesso. O nivel define a ordem; as permissoes definem o que o papel pode fazer.
+/// Um degrau da hierarquia de acesso. O nível define a ordem; as permissões definem o que o papel pode fazer.
 /// </summary>
 public sealed class AccessRole
 {
