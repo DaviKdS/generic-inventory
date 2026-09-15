@@ -14,6 +14,7 @@ public interface IUserAccessService
 
     Task<UserAccessDto> RegisterAsync(RegisterRequestDto request, CancellationToken cancellationToken = default);
     Task<UserAccessRecord?> ValidateLoginAsync(LoginRequestDto request, CancellationToken cancellationToken = default);
+    Task<UserAccessRecord?> GetUserRecordByIdAsync(string id, CancellationToken cancellationToken = default);
     Task<UserAccessDto?> GetUserByIdAsync(string id, CancellationToken cancellationToken = default);
 
     /// <summary>Confere se a sessao ainda corresponde ao acesso atual (papel, status e senha).</summary>

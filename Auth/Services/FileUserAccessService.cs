@@ -287,11 +287,17 @@ public class FileUserAccessService : IUserAccessService
 
     public async Task<UserAccessDto?> GetUserByIdAsync(string id, CancellationToken cancellationToken = default)
     {
+        var user = await GetUserRecordByIdAsync(id, cancellationToken);
+        return user == null ? null : ToDto(user);
+    }
+
+    public async Task<UserAccessRecord?> GetUserRecordByIdAsync(string id, CancellationToken cancellationToken = default)
+    {
         await _gate.WaitAsync(cancellationToken);
         try
         {
             var user = (await LoadUsersAsync(cancellationToken)).FirstOrDefault(item => item.Id == id);
-            return user == null ? null : ToDto(user);
+            return user;
         }
         finally
         {

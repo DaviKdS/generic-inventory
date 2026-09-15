@@ -24,6 +24,7 @@
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
+    sessionSyncTimer: null,
     sidebarCollapsed: readStoredBoolean("generic-inventory.sidebarCollapsed"),
     language: readStoredString("generic-inventory.language", "pt") === "en" ? "en" : "pt",
     theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light"
@@ -270,6 +271,7 @@
   }
 
   function showAuth() {
+    stopSessionSync();
     elements.appShell.classList.add("hidden");
     elements.authGate.classList.remove("hidden");
     const canRegister = state.auth?.selfRegistrationEnabled !== false;
@@ -288,6 +290,7 @@
     renderNav();
     renderUserMenu();
     renderFooter();
+    startSessionSync();
   }
 
   function setAuthTab(tab) {
@@ -312,10 +315,8 @@
   }
 
   function renderNav() {
-    const available = views.filter((view) => can(view.permission) && !isScreenHiddenForCurrentRole(view.id));
-    if (!available.some((view) => view.id === state.view)) {
-      state.view = available[0]?.id || "stock";
-    }
+    const available = availableViews();
+    ensureCurrentViewAvailable(available);
 
     elements.navMenu.innerHTML = available.map((view, index) => `
       <button class="nav-item ${state.view === view.id ? "active" : ""}" type="button" data-view="${view.id}" title="${escapeAttribute(viewText(view, "label"))}" style="--entry-delay: ${index * 28}ms">
@@ -324,6 +325,19 @@
       </button>
     `).join("");
     refreshIcons();
+  }
+
+  function availableViews() {
+    return views.filter((view) => can(view.permission) && !isScreenHiddenForCurrentRole(view.id));
+  }
+
+  function ensureCurrentViewAvailable(available = availableViews()) {
+    if (!available.some((view) => view.id === state.view)) {
+      state.view = available[0]?.id || "stock";
+      return true;
+    }
+
+    return false;
   }
 
   function toggleSidebar() {
@@ -490,6 +504,60 @@
     } catch {
       state.screenVisibility = { hiddenScreensByRole: { admin: [], standard: [] } };
     }
+  }
+
+  function startSessionSync() {
+    stopSessionSync();
+    state.sessionSyncTimer = window.setInterval(() => {
+      syncSessionState().catch(() => {
+        // A proxima sincronizacao tenta de novo; erros autenticados seguem pelo fluxo normal do json().
+      });
+    }, 10000);
+  }
+
+  function stopSessionSync() {
+    if (state.sessionSyncTimer) {
+      window.clearInterval(state.sessionSyncTimer);
+      state.sessionSyncTimer = null;
+    }
+  }
+
+  async function syncSessionState() {
+    if (!state.auth?.isAuthenticated) {
+      return;
+    }
+
+    const before = accessStateSignature();
+    state.auth = await authJson("/me", { method: "GET" });
+    if (!state.auth.isAuthenticated) {
+      showAuth();
+      return;
+    }
+
+    await loadScreenVisibility();
+    const changedView = ensureCurrentViewAvailable();
+    const changedAccess = before !== accessStateSignature();
+
+    if (isMobileMenu()) {
+      state.sidebarCollapsed = true;
+      applySidebarState();
+    }
+
+    renderNav();
+    renderUserMenu();
+    renderFooter();
+
+    if (changedView || changedAccess) {
+      await loadCurrentView();
+    }
+  }
+
+  function accessStateSignature() {
+    return JSON.stringify({
+      role: state.auth?.user?.role || "",
+      permissions: state.auth?.permissions || [],
+      hiddenScreensByRole: state.screenVisibility?.hiddenScreensByRole || {}
+    });
   }
 
   async function loadProducts(search = "", criticalOnly = false) {
@@ -1220,6 +1288,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.2-beta</span>
+            <h2>${state.language === "en" ? "Automatic access refresh" : "Atualização automática de acessos"}</h2>
+            <p>${state.language === "en"
+              ? "Applies role and screen visibility changes automatically on desktop and mobile sessions, renewing permissions without requiring a new login when access changes."
+              : "Aplica mudanças de perfil e visibilidade de telas automaticamente em sessões desktop e mobile, renovando permissões sem exigir novo login quando o acesso muda."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.0-beta</span>

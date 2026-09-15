@@ -64,6 +64,7 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Perfil admin: produtos, funcionários, lembretes e acessos.
 - Perfil padrão: consulta de estoque e registro de entradas/saídas.
 - Developer pode ocultar telas por perfil para `Admin` e `User`; telas ocultas saem da navegação do respectivo nível.
+- Alterações de perfil e visibilidade são sincronizadas automaticamente em sessões desktop e mobile.
 - Importação Developer com prévia de colunas, seleção de campos, criação de itens novos e atualização de itens existentes.
 - Lembretes de estoque crítico (`EstoqueAtual <= EstoqueMinimo`), editáveis pelo admin.
 - Envio de lembrete por Power Automate HTTP quando configurado.

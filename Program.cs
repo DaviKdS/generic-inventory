@@ -76,12 +76,36 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 var stamp = context.Principal?.FindFirstValue(AccessClaims.Stamp);
                 var userAccessService = context.HttpContext.RequestServices.GetRequiredService<IUserAccessService>();
 
-                if (string.IsNullOrWhiteSpace(userId) ||
-                    string.IsNullOrWhiteSpace(stamp) ||
-                    !await userAccessService.IsSessionValidAsync(userId, stamp, context.HttpContext.RequestAborted))
+                if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(stamp))
                 {
                     context.RejectPrincipal();
                     await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                var currentUser = await userAccessService.GetUserRecordByIdAsync(userId, context.HttpContext.RequestAborted);
+                if (currentUser == null || !AccessStatus.IsActive(currentUser.Status) || currentUser.MustDefinePassword)
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                if (!string.Equals(currentUser.SecurityStamp, stamp, StringComparison.Ordinal))
+                {
+                    var claims = new List<Claim>
+                    {
+                        new(ClaimTypes.NameIdentifier, currentUser.Id),
+                        new(ClaimTypes.Name, currentUser.Name),
+                        new(ClaimTypes.Email, currentUser.Email),
+                        new(ClaimTypes.Role, currentUser.Role),
+                        new(AccessClaims.Status, currentUser.Status),
+                        new(AccessClaims.Stamp, currentUser.SecurityStamp)
+                    };
+
+                    context.ReplacePrincipal(new ClaimsPrincipal(
+                        new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+                    context.ShouldRenew = true;
                 }
             }
         };
