@@ -39,6 +39,9 @@ public interface IUserAccessService
     /// <summary>Dispara o link de senha a pedido do administrador.</summary>
     Task<UserAccessDto> SendPasswordLinkAsync(string id, string requestedBy, CancellationToken cancellationToken = default);
 
+    /// <summary>Permite ao Developer definir ou substituir a senha de um usuario diretamente.</summary>
+    Task<UserAccessDto> SetPasswordByDeveloperAsync(string id, string password, string changedBy, CancellationToken cancellationToken = default);
+
     /// <summary>Dispara o link de senha a pedido do proprio usuario. Nunca revela se o e-mail existe.</summary>
     Task RequestPasswordLinkAsync(string email, CancellationToken cancellationToken = default);
 

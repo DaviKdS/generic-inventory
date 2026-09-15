@@ -1197,6 +1197,17 @@ td.actions {
   font-size: 0.96rem;
 }
 
+.password-inline {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  gap: 8px;
+  min-width: 260px;
+}
+
+.password-inline input {
+  min-height: 40px;
+}
+
 .empty {
   padding: 24px;
   color: var(--muted);
@@ -1268,6 +1279,11 @@ td.actions {
 
   .custom-field-row {
     grid-template-columns: 1fr;
+  }
+
+  .password-inline {
+    grid-template-columns: 1fr;
+    min-width: 190px;
   }
 
   .image-dropzone {

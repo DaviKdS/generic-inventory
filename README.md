@@ -63,7 +63,8 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Perfil developer: acesso técnico total, atribuição de perfis e importação de catálogo.
 - Perfil admin: produtos, funcionários, lembretes e acessos.
 - Perfil padrão: consulta de estoque e registro de entradas/saídas.
-- Developer pode ocultar telas por perfil para `Admin` e `User`; telas ocultas saem da navegação do respectivo nível.
+- Developer pode ocultar telas por perfil para `Admin` e `User`, incluindo `Acessos`; telas ocultas saem da navegação do respectivo nível.
+- Developer pode definir ou substituir senhas diretamente, inclusive quando o usuário ainda dependeria de link de senha.
 - Alterações de perfil e visibilidade são sincronizadas automaticamente em sessões desktop e mobile.
 - Importação Developer com prévia de colunas, seleção de campos, criação de itens novos e atualização de itens existentes.
 - Lembretes de estoque crítico (`EstoqueAtual <= EstoqueMinimo`), editáveis pelo admin.

@@ -94,6 +94,20 @@ public class AccessController : ControllerBase
         return await ExecuteAsync(() => _userAccessService.SendPasswordLinkAsync(id, ActingUser, cancellationToken));
     }
 
+    [Authorize(Policy = AccessPermissions.CatalogImport)]
+    [HttpPut("users/{id}/password")]
+    public async Task<ActionResult<UserAccessDto>> SetPassword(
+        string id,
+        [FromBody] DeveloperPasswordRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(() => _userAccessService.SetPasswordByDeveloperAsync(
+            id,
+            request.Password,
+            ActingUser,
+            cancellationToken));
+    }
+
     [HttpDelete("users/{id}")]
     public async Task<IActionResult> Remove(string id, CancellationToken cancellationToken)
     {

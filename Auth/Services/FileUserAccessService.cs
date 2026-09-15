@@ -644,6 +644,33 @@ public class FileUserAccessService : IUserAccessService
         return ToDto(updatedUser);
     }
 
+    public async Task<UserAccessDto> SetPasswordByDeveloperAsync(
+        string id,
+        string password,
+        string changedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+        {
+            throw new InvalidOperationException("A senha precisa ter pelo menos 8 caracteres.");
+        }
+
+        return ToDto(await MutateAsync(id, (users, user) =>
+        {
+            var actor = FindByEmail(users, NormalizeEmail(changedBy));
+            if (actor == null || !AccessRoleCatalog.IsDeveloper(actor.Role))
+            {
+                throw new InvalidOperationException("Somente Developer pode definir senha diretamente.");
+            }
+
+            user.PasswordHash = PasswordHashingService.Hash(password);
+            user.PasswordTokenHash = string.Empty;
+            user.PasswordTokenCreatedAt = null;
+            user.PasswordTokenUsedAt = null;
+            user.Touch(changedBy);
+        }, cancellationToken));
+    }
+
     public async Task RequestPasswordLinkAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);

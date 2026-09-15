@@ -1125,7 +1125,7 @@
   function renderUsersTable(users, roles) {
     return `
       <table>
-        <thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Perfil</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Perfil</th>${isDeveloperUser() ? "<th>Senha</th>" : ""}<th></th></tr></thead>
         <tbody>
           ${users.map((user) => `
             <tr>
@@ -1137,6 +1137,14 @@
                   ${rolesForUser(user, roles).map((role) => `<option value="${escapeAttribute(role.name)}" ${role.name === user.role ? "selected" : ""}>${escapeHtml(role.label)}</option>`).join("")}
                 </select>
               </td>
+              ${isDeveloperUser() ? `
+                <td>
+                  <div class="password-inline">
+                    <input type="password" data-password-for="${escapeAttribute(user.id)}" placeholder="Nova senha" autocomplete="new-password">
+                    <button class="button secondary" type="button" data-set-password="${escapeAttribute(user.id)}"><i data-lucide="key-round"></i><span>Definir</span></button>
+                  </div>
+                </td>
+              ` : ""}
               <td class="actions">
                 <button class="button secondary" type="button" data-apply-role="${escapeAttribute(user.id)}">Aplicar</button>
                 <button class="button ghost" type="button" data-password-link="${escapeAttribute(user.id)}">Link</button>
@@ -1202,7 +1210,7 @@
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
           <h2>Next update task</h2>
-          <p>Screen visibility for Admin and User is now controlled by Developer. The next task is an editable Developer screen for configuring visible fields and custom field behavior by access level.</p>
+          <p>Screen visibility for Admin and User is controlled by Developer, including the Access screen. Developer can also define user passwords directly. The next task is an editable Developer screen for configuring visible fields and custom field behavior by access level.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1236,7 +1244,7 @@
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
           <h2>Tarefa da próxima atualização</h2>
-          <p>A visibilidade de telas para Admin e User agora é controlada pelo Developer. A próxima tarefa é criar uma tela Developer editável para configurar campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
+          <p>A visibilidade de telas para Admin e User é controlada pelo Developer, incluindo a tela Acessos. O Developer também pode definir senhas diretamente. A próxima tarefa é criar uma tela Developer editável para configurar campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1250,7 +1258,7 @@
   }
 
   function renderScreenVisibilitySettings() {
-    const configurableViews = views.filter((view) => view.id !== "access");
+    const configurableViews = views;
     return `
       <form class="panel screen-visibility-panel" data-screen-visibility-form>
         <div class="panel-heading">
@@ -1288,6 +1296,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.3-beta</span>
+            <h2>${state.language === "en" ? "Developer password and access visibility controls" : "Controles Developer de senha e visibilidade de acessos"}</h2>
+            <p>${state.language === "en"
+              ? "Allows Developer to hide the Access screen for Admin/User and define or replace user passwords directly, clearing pending password links when a password is set."
+              : "Permite ao Developer ocultar a tela Acessos para Admin/User e definir ou substituir senhas diretamente, limpando links pendentes quando uma senha é definida."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.2-beta</span>
@@ -1408,6 +1425,20 @@
       } else if (target.dataset.applyRole) {
         const role = elements.content.querySelector(`[data-role-for="${target.dataset.applyRole}"]`)?.value || "standard";
         await accessJson(`/users/${target.dataset.applyRole}/role`, { method: "PUT", body: JSON.stringify({ role }) });
+        await renderAccess();
+      } else if (target.dataset.setPassword) {
+        const input = elements.content.querySelector(`[data-password-for="${target.dataset.setPassword}"]`);
+        const password = String(input?.value || "");
+        if (!password) {
+          throw new Error("Informe a nova senha.");
+        }
+
+        await accessJson(`/users/${target.dataset.setPassword}/password`, {
+          method: "PUT",
+          body: JSON.stringify({ password })
+        });
+        if (input) input.value = "";
+        showToast("Senha definida pelo Developer.", "success");
         await renderAccess();
       } else if (target.dataset.passwordLink) {
         await accessJson(`/users/${target.dataset.passwordLink}/password-link`, { method: "POST" });
