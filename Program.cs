@@ -98,6 +98,7 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connect
 
 builder.Services.AddSingleton<IApprovalNotifier, ApprovalNotificationSender>();
 builder.Services.AddSingleton<ApprovalFlowSettingsService>();
+builder.Services.AddSingleton<ScreenVisibilitySettingsService>();
 builder.Services.AddSingleton<IUserAccessService, FileUserAccessService>();
 builder.Services.AddSingleton<XlsxWorkbookReader>();
 builder.Services.AddSingleton<DatabaseTransferService>();

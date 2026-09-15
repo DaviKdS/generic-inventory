@@ -20,6 +20,7 @@
     reminderDelivery: null,
     powerAutomateSettings: null,
     catalogImportPreview: null,
+    screenVisibility: { hiddenScreensByRole: { admin: [], standard: [] } },
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
@@ -39,6 +40,11 @@
     { id: "access", label: { pt: "Acessos", en: "Access" }, icon: "shield-check", permission: permissions.accessManage, title: { pt: "Acessos", en: "Access" }, subtitle: { pt: "Contas, convites e aprovações.", en: "Accounts, invitations, and approvals." } },
     { id: "docs", label: { pt: "Documentação", en: "Documentation" }, icon: "book-open", permission: null, title: { pt: "Documentação", en: "Documentation" }, subtitle: { pt: "Guia rápido de uso, acesso global e responsabilidades.", en: "Quick guide for usage, global access, and responsibilities." } },
     { id: "releases", label: { pt: "Releases", en: "Releases" }, icon: "history", permission: null, title: { pt: "Releases", en: "Releases" }, subtitle: { pt: "Histórico das versões publicadas do serviço.", en: "History of published service versions." } }
+  ];
+
+  const screenVisibilityRoles = [
+    { role: "admin", label: "Admin" },
+    { role: "standard", label: "User" }
   ];
 
   document.addEventListener("DOMContentLoaded", init);
@@ -143,6 +149,7 @@
   async function refreshSession() {
     state.auth = await authJson("/me", { method: "GET" });
     if (state.auth.isAuthenticated) {
+      await loadScreenVisibility();
       showApp();
       await loadCurrentView();
     } else {
@@ -305,7 +312,7 @@
   }
 
   function renderNav() {
-    const available = views.filter((view) => can(view.permission));
+    const available = views.filter((view) => can(view.permission) && !isScreenHiddenForCurrentRole(view.id));
     if (!available.some((view) => view.id === state.view)) {
       state.view = available[0]?.id || "stock";
     }
@@ -475,6 +482,14 @@
     if (state.view === "access") return renderAccess();
     if (state.view === "docs") return renderDocumentation();
     if (state.view === "releases") return renderReleases();
+  }
+
+  async function loadScreenVisibility() {
+    try {
+      state.screenVisibility = await json("/api/access/screen-visibility");
+    } catch {
+      state.screenVisibility = { hiddenScreensByRole: { admin: [], standard: [] } };
+    }
   }
 
   async function loadProducts(search = "", criticalOnly = false) {
@@ -980,8 +995,9 @@
         </section>
       </section>
       ${renderApprovalFlowSettings(approvalFlowSettings)}
+      ${isDeveloperUser() ? renderScreenVisibilitySettings() : ""}
       <section class="table-card">
-          ${renderUsersTable(users, assignableRoles)}
+        ${renderUsersTable(users, assignableRoles)}
       </section>
       <section class="panel data-transfer-panel">
         <div>
@@ -1082,6 +1098,16 @@
     return state.auth?.user?.role === "developer";
   }
 
+  function isScreenHiddenForCurrentRole(viewId) {
+    if (isDeveloperUser()) {
+      return false;
+    }
+
+    const role = state.auth?.user?.role || "";
+    const hidden = state.screenVisibility?.hiddenScreensByRole?.[role] || [];
+    return hidden.includes(viewId);
+  }
+
   function renderDocumentation() {
     elements.content.innerHTML = state.language === "en" ? `
       <section class="docs-grid">
@@ -1108,7 +1134,7 @@
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
           <h2>Next update task</h2>
-          <p>Build an editable Developer screen for configuring app screens, visible fields, and custom field behavior by access level.</p>
+          <p>Screen visibility for Admin and User is now controlled by Developer. The next task is an editable Developer screen for configuring visible fields and custom field behavior by access level.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1142,7 +1168,7 @@
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
           <h2>Tarefa da próxima atualização</h2>
-          <p>Criar uma tela Developer editável para configurar telas do app, campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
+          <p>A visibilidade de telas para Admin e User agora é controlada pelo Developer. A próxima tarefa é criar uma tela Developer editável para configurar campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1155,6 +1181,42 @@
     refreshIcons();
   }
 
+  function renderScreenVisibilitySettings() {
+    const configurableViews = views.filter((view) => view.id !== "access");
+    return `
+      <form class="panel screen-visibility-panel" data-screen-visibility-form>
+        <div class="panel-heading">
+          <div>
+            <h2>Visibilidade por perfil</h2>
+            <p>Marque as telas que devem ficar ocultas para Admin ou User. Developer sempre enxerga tudo.</p>
+          </div>
+          <span class="tag good">Developer</span>
+        </div>
+        <div class="visibility-grid">
+          ${screenVisibilityRoles.map((role) => `
+            <section>
+              <h3>${escapeHtml(role.label)}</h3>
+              ${configurableViews.map((view) => `
+                <label class="checkbox-line">
+                  <input type="checkbox" name="${escapeAttribute(role.role)}" value="${escapeAttribute(view.id)}" ${isScreenHiddenForRole(role.role, view.id) ? "checked" : ""}>
+                  ${escapeHtml(viewText(view, "label"))}
+                </label>
+              `).join("")}
+            </section>
+          `).join("")}
+        </div>
+        <div class="form-actions">
+          <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar visibilidade</span></button>
+        </div>
+      </form>
+    `;
+  }
+
+  function isScreenHiddenForRole(role, viewId) {
+    const hidden = state.screenVisibility?.hiddenScreensByRole?.[role] || [];
+    return hidden.includes(viewId);
+  }
+
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
@@ -1163,8 +1225,8 @@
             <span class="tag warn">v1.2.0-beta</span>
             <h2>${state.language === "en" ? "Developer access and catalog import test version" : "Versão de testes com acesso Developer e importação de catálogo"}</h2>
             <p>${state.language === "en"
-              ? "Adds the Developer role above Admin, the default Developer test login, mobile menu adjustments, Developer-only catalog import for XLSX/CSV/searchable PDF, internal documentation updates, and the next task for editable Dev screens and fields."
-              : "Adiciona o perfil Developer acima do Admin, login Developer padrão de teste, ajuste do menu mobile, importação de catálogo apenas para Developer por XLSX/CSV/PDF pesquisável, documentação interna e próxima tarefa para telas/campos editáveis no modo Dev."}</p>
+              ? "Adds the Developer role above Admin, the default Developer test login, mobile menu adjustments, Developer-only catalog import for XLSX/CSV/searchable PDF, screen visibility controls for Admin/User, internal documentation updates, and the next task for editable Dev fields."
+              : "Adiciona o perfil Developer acima do Admin, login Developer padrão de teste, ajuste do menu mobile, importação de catálogo apenas para Developer por XLSX/CSV/PDF pesquisável, controle de visibilidade de telas para Admin/User, documentação interna e próxima tarefa para campos editáveis no modo Dev."}</p>
           </div>
         </article>
         <article class="panel release-card">
@@ -1326,6 +1388,8 @@
         await savePowerAutomateSettings(form);
       } else if (form.dataset.approvalFlowSettingsForm !== undefined) {
         await saveApprovalFlowSettings(form);
+      } else if (form.dataset.screenVisibilityForm !== undefined) {
+        await saveScreenVisibility(form);
       } else if (form.dataset.inviteForm !== undefined) {
         await inviteUser(form);
       }
@@ -1587,6 +1651,23 @@
       })
     });
     showToast("Webhook de aprovação salvo.", "success");
+    await renderAccess();
+  }
+
+  async function saveScreenVisibility(form) {
+    const data = new FormData(form);
+    const hiddenScreensByRole = {};
+    screenVisibilityRoles.forEach((role) => {
+      hiddenScreensByRole[role.role] = data.getAll(role.role).map((value) => String(value));
+    });
+
+    state.screenVisibility = await json("/api/access/screen-visibility", {
+      method: "PUT",
+      body: JSON.stringify({ hiddenScreensByRole })
+    });
+
+    renderNav();
+    showToast("Visibilidade das telas atualizada.", "success");
     await renderAccess();
   }
 

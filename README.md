@@ -63,6 +63,7 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Perfil developer: acesso técnico total, atribuição de perfis e importação de catálogo.
 - Perfil admin: produtos, funcionários, lembretes e acessos.
 - Perfil padrão: consulta de estoque e registro de entradas/saídas.
+- Developer pode ocultar telas por perfil para `Admin` e `User`; telas ocultas saem da navegação do respectivo nível.
 - Importação Developer com prévia de colunas, seleção de campos, criação de itens novos e atualização de itens existentes.
 - Lembretes de estoque crítico (`EstoqueAtual <= EstoqueMinimo`), editáveis pelo admin.
 - Envio de lembrete por Power Automate HTTP quando configurado.
@@ -73,7 +74,7 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 
 ## Próxima Atualização
 
-- Criar tela Developer editável para configurar telas visíveis, campos do sistema e campos personalizados por nível de acesso.
+- Criar tela Developer editável para configurar campos do sistema e campos personalizados por nível de acesso.
 
 ## Validação
 
