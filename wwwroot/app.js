@@ -22,6 +22,7 @@
     catalogImportPreview: null,
     screenVisibility: { hiddenScreensByRole: { admin: [], standard: [] } },
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
+    passwordLinkResult: null,
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
     sessionSyncTimer: null,
@@ -1064,6 +1065,7 @@
       </section>
       ${renderApprovalFlowSettings(approvalFlowSettings)}
       ${isDeveloperUser() ? renderScreenVisibilitySettings() : ""}
+      ${state.passwordLinkResult ? renderPasswordLinkReveal(state.passwordLinkResult) : ""}
       <section class="table-card">
         ${renderUsersTable(users, assignableRoles)}
       </section>
@@ -1100,6 +1102,21 @@
           <button class="button primary" type="submit">Salvar webhook</button>
         </div>
       </form>
+    `;
+  }
+
+  function renderPasswordLinkReveal(result) {
+    return `
+      <section class="panel password-link-panel">
+        <div>
+          <h2>Link de senha revelado</h2>
+          <p>Usuário: ${escapeHtml(result.user?.name || "")} (${escapeHtml(result.user?.email || "")})</p>
+        </div>
+        <div class="password-link-copy">
+          <input type="text" readonly value="${escapeAttribute(result.passwordSetupUrl || "")}" data-password-link-value>
+          <button class="button secondary" type="button" data-copy-password-link><i data-lucide="copy"></i><span>Copiar</span></button>
+        </div>
+      </section>
     `;
   }
 
@@ -1298,6 +1315,15 @@
       <section class="release-list">
         <article class="panel release-card">
           <div>
+            <span class="tag warn">v1.2.5-beta</span>
+            <h2>${state.language === "en" ? "Visible password link for access management" : "Link de senha visível no gerenciamento de acessos"}</h2>
+            <p>${state.language === "en"
+              ? "When an administrator or Developer generates a password link, the Access screen now reveals the one-time URL and offers a copy button for manual sharing."
+              : "Quando um administrador ou Developer gera um link de senha, a tela Acessos agora revela a URL de uso único e oferece um botão de cópia para compartilhamento manual."}</p>
+          </div>
+        </article>
+        <article class="panel release-card">
+          <div>
             <span class="tag warn">v1.2.4-beta</span>
             <h2>${state.language === "en" ? "Developer login hotfix and Portuguese review" : "Correção do login Developer e revisão de português"}</h2>
             <p>${state.language === "en"
@@ -1450,8 +1476,18 @@
         showToast("Senha definida pelo Developer.", "success");
         await renderAccess();
       } else if (target.dataset.passwordLink) {
-        await accessJson(`/users/${target.dataset.passwordLink}/password-link`, { method: "POST" });
-        showToast("Link de senha enviado.", "success");
+        state.passwordLinkResult = await accessJson(`/users/${target.dataset.passwordLink}/password-link`, { method: "POST" });
+        showToast("Link de senha enviado e revelado.", "success");
+        await renderAccess();
+      } else if (target.dataset.copyPasswordLink !== undefined) {
+        const input = elements.content.querySelector("[data-password-link-value]");
+        const value = String(input?.value || "");
+        if (!value) {
+          throw new Error("Nenhum link de senha disponível.");
+        }
+
+        await copyText(value);
+        showToast("Link copiado.", "success");
       } else if (target.dataset.removeUser) {
         if (confirm("Remover acesso?")) {
           await accessJson(`/users/${target.dataset.removeUser}`, { method: "DELETE" });
@@ -1891,6 +1927,23 @@
     elements.toast.className = `toast ${type}`.trim();
     elements.toast.classList.remove("hidden");
     setTimeout(() => elements.toast.classList.add("hidden"), 3500);
+  }
+
+  async function copyText(value) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
   }
 
   function showError(error) {

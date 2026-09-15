@@ -87,9 +87,9 @@ public class AccessController : ControllerBase
         return await ExecuteAsync(() => _userAccessService.ReactivateAsync(id, ActingUser, cancellationToken));
     }
 
-    /// <summary>Reenvia o link de definicao de senha para o usuario.</summary>
+    /// <summary>Reenvia o link de definição de senha para o usuário e revela o link para cópia manual.</summary>
     [HttpPost("users/{id}/password-link")]
-    public async Task<ActionResult<UserAccessDto>> SendPasswordLink(string id, CancellationToken cancellationToken)
+    public async Task<ActionResult<PasswordLinkResponseDto>> SendPasswordLink(string id, CancellationToken cancellationToken)
     {
         return await ExecuteAsync(() => _userAccessService.SendPasswordLinkAsync(id, ActingUser, cancellationToken));
     }
@@ -205,9 +205,9 @@ public class AccessController : ControllerBase
         User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? AccessRoleCatalog.Admin;
 
     /// <summary>
-    /// Traduz as excecoes de dominio para HTTP: invariante violada vira 409, registro ausente vira 404.
+    /// Traduz as exceções de domínio para HTTP: invariante violada vira 409, registro ausente vira 404.
     /// </summary>
-    private async Task<ActionResult<UserAccessDto>> ExecuteAsync(Func<Task<UserAccessDto>> action)
+    private async Task<ActionResult<T>> ExecuteAsync<T>(Func<Task<T>> action)
     {
         try
         {

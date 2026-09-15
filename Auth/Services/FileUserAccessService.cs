@@ -24,16 +24,19 @@ public class FileUserAccessService : IUserAccessService
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _storePath;
     private readonly AuthOptions _options;
+    private readonly AppNotificationOptions _appOptions;
     private readonly IApprovalNotifier _approvalNotifier;
     private readonly ILogger<FileUserAccessService> _logger;
 
     public FileUserAccessService(
         IOptions<AuthOptions> options,
+        IOptions<AppNotificationOptions> appOptions,
         IWebHostEnvironment environment,
         IApprovalNotifier approvalNotifier,
         ILogger<FileUserAccessService> logger)
     {
         _options = options.Value;
+        _appOptions = appOptions.Value;
         _approvalNotifier = approvalNotifier;
         _logger = logger;
         _storePath = Path.IsPathRooted(_options.StorePath)
@@ -622,7 +625,7 @@ public class FileUserAccessService : IUserAccessService
         await NotifyAsync(() => _approvalNotifier.SendAccessChangedAsync(removedUser, "removed", cancellationToken));
     }
 
-    public async Task<UserAccessDto> SendPasswordLinkAsync(string id, string requestedBy, CancellationToken cancellationToken = default)
+    public async Task<PasswordLinkResponseDto> SendPasswordLinkAsync(string id, string requestedBy, CancellationToken cancellationToken = default)
     {
         var passwordToken = string.Empty;
 
@@ -641,7 +644,11 @@ public class FileUserAccessService : IUserAccessService
         await NotifyAsync(() => _approvalNotifier.SendPasswordSetupAsync(
             updatedUser, passwordToken, PasswordSetupReason.Reset, cancellationToken));
 
-        return ToDto(updatedUser);
+        return new PasswordLinkResponseDto
+        {
+            User = ToDto(updatedUser),
+            PasswordSetupUrl = BuildPasswordUrl(updatedUser.Id, passwordToken)
+        };
     }
 
     public async Task<UserAccessDto> SetPasswordByDeveloperAsync(
@@ -883,7 +890,19 @@ public class FileUserAccessService : IUserAccessService
             && DateTimeOffset.UtcNow - user.PasswordTokenCreatedAt.Value <= PasswordTokenLifetime;
     }
 
-    /// <summary>Gera o token de senha e guarda apenas o hash. O valor em claro so vai para o e-mail.</summary>
+    private string BuildPasswordUrl(string userId, string passwordToken)
+    {
+        if (string.IsNullOrWhiteSpace(passwordToken))
+        {
+            return string.Empty;
+        }
+
+        var baseUrl = _appOptions.PublicBaseUrl.Trim().TrimEnd('/');
+        var path = $"?view=password&uid={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(passwordToken)}";
+        return string.IsNullOrWhiteSpace(baseUrl) ? path : $"{baseUrl}/{path}";
+    }
+
+    /// <summary>Gera o token de senha e guarda apenas o hash. O valor em claro pode ser enviado por e-mail e revelado no painel de acessos.</summary>
     private static string IssuePasswordToken(UserAccessRecord user)
     {
         var token = GenerateToken();

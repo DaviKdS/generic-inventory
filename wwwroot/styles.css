@@ -1208,6 +1208,27 @@ td.actions {
   min-height: 40px;
 }
 
+.password-link-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.password-link-panel p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.password-link-copy {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.password-link-copy input {
+  font-family: var(--font-mono);
+  min-width: 0;
+}
+
 .empty {
   padding: 24px;
   color: var(--muted);
@@ -1284,6 +1305,10 @@ td.actions {
   .password-inline {
     grid-template-columns: 1fr;
     min-width: 190px;
+  }
+
+  .password-link-copy {
+    grid-template-columns: 1fr;
   }
 
   .image-dropzone {

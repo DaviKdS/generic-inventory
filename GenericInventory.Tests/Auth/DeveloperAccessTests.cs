@@ -51,6 +51,36 @@ public class DeveloperAccessTests
         Assert.False(login.MustDefinePassword);
     }
 
+    [Fact]
+    public async Task SendPasswordLink_ShouldReturnPublicPasswordSetupUrl()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"generic-inventory-auth-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var storePath = Path.Combine(root, "auth-users.json");
+        var user = new UserAccessRecord
+        {
+            Id = "user-1",
+            Name = "Usuário",
+            Email = "user@email.com",
+            PasswordHash = PasswordHashingService.Hash("senha-antiga"),
+            Role = AccessRoleCatalog.Standard,
+            Status = AccessStatus.Approved,
+            Origin = AccessOrigin.Invite,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        await File.WriteAllTextAsync(
+            storePath,
+            JsonSerializer.Serialize(new[] { user }, new JsonSerializerOptions { WriteIndented = true }));
+
+        var service = CreateService(root, storePath);
+        var response = await service.SendPasswordLinkAsync(user.Id, "dev@email.com");
+
+        Assert.Equal(user.Id, response.User.Id);
+        Assert.StartsWith("https://teste.example/?view=password&uid=user-1&token=", response.PasswordSetupUrl);
+        Assert.DoesNotContain("senha-antiga", response.PasswordSetupUrl);
+    }
+
     private static FileUserAccessService CreateService(string root, string storePath)
     {
         var environment = new Mock<IWebHostEnvironment>();
@@ -71,6 +101,7 @@ public class DeveloperAccessTests
 
         return new FileUserAccessService(
             options,
+            Options.Create(new AppNotificationOptions { PublicBaseUrl = "https://teste.example" }),
             environment.Object,
             Mock.Of<IApprovalNotifier>(),
             NullLogger<FileUserAccessService>.Instance);
