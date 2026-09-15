@@ -103,6 +103,7 @@ builder.Services.AddSingleton<XlsxWorkbookReader>();
 builder.Services.AddSingleton<DatabaseTransferService>();
 builder.Services.AddScoped<SeedService>();
 builder.Services.AddScoped<ProductsService>();
+builder.Services.AddScoped<CatalogImportService>();
 builder.Services.AddScoped<EmployeesService>();
 builder.Services.AddScoped<StockReminderService>();
 builder.Services.AddScoped<PowerAutomateReminderSettingsService>();

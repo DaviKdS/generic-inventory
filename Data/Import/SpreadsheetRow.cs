@@ -12,6 +12,8 @@ public sealed class SpreadsheetRow
         _values = values;
     }
 
+    public IReadOnlyDictionary<string, string> Values => _values;
+
     public string Get(params string[] headers)
     {
         foreach (var header in headers)

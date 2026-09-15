@@ -10,6 +10,7 @@ public static class AccessPermissions
     public const string StockRead = "stock.read";
     public const string StockMove = "stock.move";
     public const string ProductsManage = "products.manage";
+    public const string CatalogImport = "catalog.import";
     public const string EmployeesManage = "employees.manage";
     public const string RemindersManage = "reminders.manage";
 
@@ -19,6 +20,7 @@ public static class AccessPermissions
         StockRead,
         StockMove,
         ProductsManage,
+        CatalogImport,
         EmployeesManage,
         RemindersManage
     };
@@ -29,6 +31,7 @@ public static class AccessPermissions
         [StockRead] = "Consultar estoque",
         [StockMove] = "Registrar entradas e saidas",
         [ProductsManage] = "Gerenciar produtos",
+        [CatalogImport] = "Importar catalogo",
         [EmployeesManage] = "Gerenciar funcionarios",
         [RemindersManage] = "Gerenciar lembretes"
     };

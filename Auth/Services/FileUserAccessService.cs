@@ -16,6 +16,10 @@ namespace GenericInventory.Auth.Services;
 public class FileUserAccessService : IUserAccessService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private const string DeveloperEmail = "dev@email.com";
+    private const string DeveloperName = "Developer";
+    private const string DeveloperPasswordHash =
+        "v1:120000:QhWk/kPLEhQWf4ZNqzeLlg==:uy/wA981tCya/Ku261ArCZRbPeJTMiwxXrR5mesxHcQ=";
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _storePath;
@@ -64,6 +68,7 @@ public class FileUserAccessService : IUserAccessService
         {
             var users = await LoadUsersAsync(cancellationToken);
             var admin = FindByEmail(users, email);
+            var developer = FindByEmail(users, DeveloperEmail);
 
             if (admin == null)
             {
@@ -124,6 +129,60 @@ public class FileUserAccessService : IUserAccessService
                 // Envia o link apenas quando nao ha senha e nao existe convite valido em aberto.
                 passwordToken = IssuePasswordToken(admin);
                 notifyUser = admin;
+            }
+
+            if (developer == null)
+            {
+                developer = new UserAccessRecord
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    Name = DeveloperName,
+                    Email = DeveloperEmail,
+                    PasswordHash = DeveloperPasswordHash,
+                    Role = AccessRoleCatalog.Developer,
+                    Status = AccessStatus.Approved,
+                    Origin = AccessOrigin.Bootstrap,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ApprovedAt = DateTimeOffset.UtcNow,
+                    ApprovedBy = AccessOrigin.Bootstrap
+                };
+
+                users.Add(developer);
+                _logger.LogInformation("Conta Developer criada pelo bootstrap para {Email}.", DeveloperEmail);
+            }
+            else
+            {
+                var developerRepaired = false;
+                if (!AccessRoleCatalog.IsDeveloper(developer.Role))
+                {
+                    developer.Role = AccessRoleCatalog.Developer;
+                    developerRepaired = true;
+                }
+
+                if (!AccessStatus.IsActive(developer.Status))
+                {
+                    developer.Status = AccessStatus.Approved;
+                    developer.ApprovedAt ??= DateTimeOffset.UtcNow;
+                    developer.SuspendedAt = null;
+                    developer.SuspendedBy = string.Empty;
+                    developer.SuspensionReason = string.Empty;
+                    developerRepaired = true;
+                }
+
+                if (developer.MustDefinePassword)
+                {
+                    developer.PasswordHash = DeveloperPasswordHash;
+                    developer.PasswordTokenHash = string.Empty;
+                    developer.PasswordTokenCreatedAt = null;
+                    developer.PasswordTokenUsedAt = null;
+                    developerRepaired = true;
+                }
+
+                if (developerRepaired)
+                {
+                    developer.Touch(AccessOrigin.Bootstrap);
+                    _logger.LogInformation("Conta Developer restaurada para {Email}.", DeveloperEmail);
+                }
             }
 
             await SaveUsersAsync(users, cancellationToken);
@@ -332,7 +391,11 @@ public class FileUserAccessService : IUserAccessService
     public async Task<UserAccessDto> ApproveAsync(string id, string role, string approvedBy, CancellationToken cancellationToken = default)
     {
         EnsureKnownRole(role);
-        var updatedUser = await MutateAsync(id, (users, user) => ApproveUser(user, role, approvedBy), cancellationToken);
+        var updatedUser = await MutateAsync(id, (users, user) =>
+        {
+            EnsureCanAssignRole(users, approvedBy, role);
+            ApproveUser(user, role, approvedBy);
+        }, cancellationToken);
 
         await NotifyAsync(() => _approvalNotifier.SendAccessApprovedAsync(updatedUser, cancellationToken));
         return ToDto(updatedUser);
@@ -418,6 +481,8 @@ public class FileUserAccessService : IUserAccessService
         try
         {
             var users = await LoadUsersAsync(cancellationToken);
+            EnsureCanAssignRole(users, invitedBy, request.Role);
+
             if (FindByEmail(users, email) != null)
             {
                 throw new InvalidOperationException("Este e-mail ja possui um acesso.");
@@ -469,6 +534,7 @@ public class FileUserAccessService : IUserAccessService
 
             // Um admin nao muda o proprio papel: evita se trancar para fora do painel.
             EnsureNotSelf(user, changedBy);
+            EnsureCanAssignRole(users, changedBy, normalizedRole);
 
             if (!AccessRoleCatalog.IsAdmin(normalizedRole))
             {
@@ -679,6 +745,20 @@ public class FileUserAccessService : IUserAccessService
             string.Equals(user.Email, NormalizeEmail(actorEmail), StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Um administrador nao altera o proprio acesso.");
+        }
+    }
+
+    private static void EnsureCanAssignRole(IEnumerable<UserAccessRecord> users, string actorEmail, string role)
+    {
+        if (!AccessRoleCatalog.IsDeveloper(role))
+        {
+            return;
+        }
+
+        var actor = FindByEmail(users, NormalizeEmail(actorEmail));
+        if (actor == null || !AccessRoleCatalog.IsDeveloper(actor.Role))
+        {
+            throw new InvalidOperationException("Somente Developer pode conceder o nivel Developer.");
         }
     }
 

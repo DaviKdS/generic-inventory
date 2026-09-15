@@ -6,6 +6,7 @@ namespace GenericInventory.Auth.AccessControl;
 /// </summary>
 public static class AccessRoleCatalog
 {
+    public const string Developer = "developer";
     public const string Admin = "admin";
     public const string Standard = "standard";
 
@@ -16,11 +17,25 @@ public static class AccessRoleCatalog
     {
         new()
         {
+            Name = Developer,
+            Level = 1000,
+            Label = "Developer",
+            Description = "Acesso tecnico total: define perfis, telas, catalogo, importacoes e administracao do sistema.",
+            Permissions = Set(AccessPermissions.All.ToArray())
+        },
+        new()
+        {
             Name = Admin,
             Level = 100,
             Label = "Administrador",
             Description = "Gerencia acessos, produtos, funcionarios, movimentacoes e lembretes de estoque.",
-            Permissions = Set(AccessPermissions.All.ToArray())
+            Permissions = Set(
+                AccessPermissions.AccessManage,
+                AccessPermissions.StockRead,
+                AccessPermissions.StockMove,
+                AccessPermissions.ProductsManage,
+                AccessPermissions.EmployeesManage,
+                AccessPermissions.RemindersManage)
         },
         new()
         {
@@ -73,7 +88,14 @@ public static class AccessRoleCatalog
 
     public static bool IsAdmin(string? role)
     {
-        return string.Equals(Find(role)?.Name, Admin, StringComparison.OrdinalIgnoreCase);
+        var name = Find(role)?.Name;
+        return string.Equals(name, Admin, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, Developer, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsDeveloper(string? role)
+    {
+        return string.Equals(Find(role)?.Name, Developer, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

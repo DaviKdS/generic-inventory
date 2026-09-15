@@ -4,6 +4,7 @@
     stockRead: "stock.read",
     stockMove: "stock.move",
     productsManage: "products.manage",
+    catalogImport: "catalog.import",
     employeesManage: "employees.manage",
     remindersManage: "reminders.manage"
   };
@@ -18,6 +19,7 @@
     reminders: [],
     reminderDelivery: null,
     powerAutomateSettings: null,
+    catalogImportPreview: null,
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
@@ -122,6 +124,12 @@
     elements.content.addEventListener("dragover", handleContentDragOver);
     elements.content.addEventListener("dragleave", handleContentDragLeave);
     elements.content.addEventListener("drop", handleContentDrop);
+    window.addEventListener("resize", () => {
+      if (isMobileMenu()) {
+        state.sidebarCollapsed = true;
+        applySidebarState();
+      }
+    });
   }
 
   function readPasswordInvite() {
@@ -266,6 +274,9 @@
   function showApp() {
     elements.authGate.classList.add("hidden");
     elements.appShell.classList.remove("hidden");
+    if (isMobileMenu()) {
+      state.sidebarCollapsed = true;
+    }
     applySidebarState();
     renderNav();
     renderUserMenu();
@@ -309,6 +320,12 @@
   }
 
   function toggleSidebar() {
+    if (isMobileMenu()) {
+      state.sidebarCollapsed = !state.sidebarCollapsed;
+      applySidebarState();
+      return;
+    }
+
     state.sidebarCollapsed = !state.sidebarCollapsed;
     try {
       localStorage.setItem("generic-inventory.sidebarCollapsed", state.sidebarCollapsed ? "true" : "false");
@@ -320,11 +337,18 @@
 
   function applySidebarState() {
     elements.appShell.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+    const mobile = isMobileMenu();
     elements.sidebarToggle.title = state.sidebarCollapsed ? "Expandir menu" : "Recolher menu";
     elements.sidebarToggle.setAttribute("aria-label", elements.sidebarToggle.title);
     elements.sidebarToggle.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
-    elements.sidebarToggle.innerHTML = `<i data-lucide="${state.sidebarCollapsed ? "panel-left-open" : "panel-left-close"}"></i>`;
+    elements.sidebarToggle.innerHTML = mobile
+      ? `<i data-lucide="menu"></i><span>Menu</span>`
+      : `<i data-lucide="${state.sidebarCollapsed ? "panel-left-open" : "panel-left-close"}"></i>`;
     refreshIcons();
+  }
+
+  function isMobileMenu() {
+    return window.matchMedia("(max-width: 900px)").matches;
   }
 
   function renderUserMenu() {
@@ -625,8 +649,88 @@
           ${renderProductsTable()}
         </section>
       </section>
+      ${can(permissions.catalogImport) ? renderCatalogImportPanel() : ""}
     `;
     refreshIcons();
+  }
+
+  function renderCatalogImportPanel() {
+    const preview = state.catalogImportPreview;
+    return `
+      <section class="panel catalog-import-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Importação Developer</h2>
+            <p>Importe catálogo por XLSX, CSV ou PDF pesquisável e escolha quais campos serão aplicados.</p>
+          </div>
+          <span class="tag good">Developer</span>
+        </div>
+        <form class="form-grid" data-catalog-preview-form>
+          <label>
+            <span>Arquivo do catálogo</span>
+            <input name="file" type="file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required>
+          </label>
+          <button class="button secondary" type="submit"><i data-lucide="scan-search"></i><span>Carregar prévia</span></button>
+        </form>
+        ${preview ? renderCatalogImportMapping(preview) : ""}
+      </section>
+    `;
+  }
+
+  function renderCatalogImportMapping(preview) {
+    const columns = preview.columns || [];
+    const sampleRows = preview.rows || [];
+    return `
+      <form class="form-grid two catalog-mapping" data-catalog-import-form>
+        <input type="hidden" name="previewFileReady" value="true">
+        ${columnSelect("Código", "codeColumn", columns, guessColumn(columns, ["CODIGO", "CODE", "SKU", "ID"]), true)}
+        ${columnSelect("Nome/descrição", "descriptionColumn", columns, guessColumn(columns, ["DESCRICAO", "DESCRIPTION", "NOME", "NAME", "ITEM"]), true)}
+        ${columnSelect("Estoque atual", "currentStockColumn", columns, guessColumn(columns, ["ESTOQUEATUAL", "CURRENTSTOCK", "QTD", "QUANTIDADE", "STOCK"]))}
+        ${columnSelect("Estoque mínimo", "minimumStockColumn", columns, guessColumn(columns, ["ESTOQUEMINIMO", "MINIMUMSTOCK", "MINIMO", "MIN"]))}
+        ${columnSelect("Valor venda", "saleValueColumn", columns, guessColumn(columns, ["VALORVENDA", "SALEVALUE", "PRECO", "PRICE", "VALOR"]))}
+        ${columnSelect("Imagem/URL", "imagePathColumn", columns, guessColumn(columns, ["IMAGEM", "IMAGE", "FOTO", "PHOTO", "URL"]))}
+        <label class="custom-column-picker">
+          <span>Campos personalizados a criar/atualizar</span>
+          <select name="customColumns" multiple size="${Math.min(Math.max(columns.length, 4), 9)}">
+            ${columns.map((column) => `<option value="${escapeAttribute(column)}">${escapeHtml(column)}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          <span>Reenviar arquivo para importar</span>
+          <input name="file" type="file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required>
+        </label>
+        <div class="form-actions">
+          <button class="button primary" type="submit"><i data-lucide="upload-cloud"></i><span>Importar catálogo</span></button>
+        </div>
+      </form>
+      <div class="import-preview">
+        <strong>${preview.totalRows} linha(s) detectada(s)</strong>
+        <div class="table-card">
+          <table>
+            <thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
+            <tbody>
+              ${sampleRows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(row[column] || "")}</td>`).join("")}</tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function columnSelect(label, name, columns, selected = "", required = false) {
+    return `
+      <label>
+        <span>${escapeHtml(label)}</span>
+        <select name="${escapeAttribute(name)}" ${required ? "required" : ""}>
+          <option value="">Não importar</option>
+          ${columns.map((column) => `<option value="${escapeAttribute(column)}" ${column === selected ? "selected" : ""}>${escapeHtml(column)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  function guessColumn(columns, candidates) {
+    return columns.find((column) => candidates.includes(normalizeHeader(column))) || "";
   }
 
   function renderProductsTable() {
@@ -859,7 +963,8 @@
       accessJson("/approval-flow/settings")
     ]);
     state.access = { catalog, users, approvals, approvalFlowSettings };
-    const roleOptions = catalog.roles.map((role) => `<option value="${escapeAttribute(role.name)}">${escapeHtml(role.label)}</option>`).join("");
+    const assignableRoles = rolesAssignableByCurrentUser(catalog.roles);
+    const roleOptions = assignableRoles.map((role) => `<option value="${escapeAttribute(role.name)}">${escapeHtml(role.label)}</option>`).join("");
 
     elements.content.innerHTML = `
       <section class="two-columns">
@@ -876,7 +981,7 @@
       </section>
       ${renderApprovalFlowSettings(approvalFlowSettings)}
       <section class="table-card">
-        ${renderUsersTable(users, catalog.roles)}
+          ${renderUsersTable(users, assignableRoles)}
       </section>
       <section class="panel data-transfer-panel">
         <div>
@@ -917,6 +1022,7 @@
   function renderApproval(user) {
     const options = state.access.catalog.roles
       .filter((role) => role.name !== "admin")
+      .filter((role) => role.name !== "developer" || isDeveloperUser())
       .map((role) => `<option value="${escapeAttribute(role.name)}">${escapeHtml(role.label)}</option>`)
       .join("");
     return `
@@ -944,7 +1050,7 @@
               <td><span class="tag ${user.status === "approved" ? "good" : "warn"}">${escapeHtml(user.status)}</span></td>
               <td>
                 <select data-role-for="${escapeAttribute(user.id)}">
-                  ${roles.map((role) => `<option value="${escapeAttribute(role.name)}" ${role.name === user.role ? "selected" : ""}>${escapeHtml(role.label)}</option>`).join("")}
+                  ${rolesForUser(user, roles).map((role) => `<option value="${escapeAttribute(role.name)}" ${role.name === user.role ? "selected" : ""}>${escapeHtml(role.label)}</option>`).join("")}
                 </select>
               </td>
               <td class="actions">
@@ -957,6 +1063,23 @@
         </tbody>
       </table>
     `;
+  }
+
+  function rolesAssignableByCurrentUser(roles) {
+    return roles.filter((role) => role.name !== "developer" || isDeveloperUser());
+  }
+
+  function rolesForUser(user, roles) {
+    if (roles.some((role) => role.name === user.role)) {
+      return roles;
+    }
+
+    const currentRole = state.access.catalog?.roles?.find((role) => role.name === user.role);
+    return currentRole ? [currentRole, ...roles] : roles;
+  }
+
+  function isDeveloperUser() {
+    return state.auth?.user?.role === "developer";
   }
 
   function renderDocumentation() {
@@ -975,7 +1098,17 @@
         <article class="panel doc-card">
           <i data-lucide="shield-check"></i>
           <h2>Access and security</h2>
-          <p>The first administrator account is used only for bootstrap. Keep real credentials private, approve users in the Access screen, and rotate temporary passwords after first use.</p>
+          <p>The Developer account is above Admin and can access technical catalog import tools. Default test login: <code>dev@email.com</code>. Change temporary passwords before production use.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="file-spreadsheet"></i>
+          <h2>Developer import</h2>
+          <p>Developer users can upload XLSX, CSV, or searchable PDF catalogs, preview detected columns, choose the fields to import, and create or update items.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="clipboard-list"></i>
+          <h2>Next update task</h2>
+          <p>Build an editable Developer screen for configuring app screens, visible fields, and custom field behavior by access level.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -999,7 +1132,17 @@
         <article class="panel doc-card">
           <i data-lucide="shield-check"></i>
           <h2>Acesso e segurança</h2>
-          <p>A primeira conta de administrador é usada apenas para configuração inicial. Mantenha credenciais reais em sigilo, aprove usuários na tela Acessos e troque senhas temporárias após o primeiro uso.</p>
+          <p>A conta Developer fica acima do Admin e pode acessar ferramentas técnicas de importação de catálogo. Login padrão de teste: <code>dev@email.com</code>. Troque senhas temporárias antes de produção.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="file-spreadsheet"></i>
+          <h2>Importação Developer</h2>
+          <p>Usuários Developer podem enviar catálogos XLSX, CSV ou PDF pesquisável, visualizar colunas detectadas, escolher campos a importar e criar ou atualizar itens.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="clipboard-list"></i>
+          <h2>Tarefa da próxima atualização</h2>
+          <p>Criar uma tela Developer editável para configurar telas do app, campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1015,6 +1158,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.0-beta</span>
+            <h2>${state.language === "en" ? "Developer access and catalog import test version" : "Versão de testes com acesso Developer e importação de catálogo"}</h2>
+            <p>${state.language === "en"
+              ? "Adds the Developer role above Admin, the default Developer test login, mobile menu adjustments, Developer-only catalog import for XLSX/CSV/searchable PDF, internal documentation updates, and the next task for editable Dev screens and fields."
+              : "Adiciona o perfil Developer acima do Admin, login Developer padrão de teste, ajuste do menu mobile, importação de catálogo apenas para Developer por XLSX/CSV/PDF pesquisável, documentação interna e próxima tarefa para telas/campos editáveis no modo Dev."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag good">v1.1.0</span>
@@ -1162,6 +1314,10 @@
         await saveMovement(form);
       } else if (form.dataset.productForm !== undefined) {
         await saveProduct(form);
+      } else if (form.dataset.catalogPreviewForm !== undefined) {
+        await previewCatalogImport(form);
+      } else if (form.dataset.catalogImportForm !== undefined) {
+        await importCatalog(form);
       } else if (form.dataset.employeeForm !== undefined) {
         await saveEmployee(form);
       } else if (form.dataset.reminderForm !== undefined) {
@@ -1242,6 +1398,46 @@
     state.drafts.product = null;
     showToast("Produto salvo.", "success");
     await renderProductsAdmin();
+  }
+
+  async function previewCatalogImport(form) {
+    const file = form.querySelector('input[name="file"]')?.files?.[0];
+    if (!file) {
+      throw new Error("Selecione um arquivo de catálogo.");
+    }
+
+    const data = new FormData();
+    data.append("file", file);
+    state.catalogImportPreview = await json("/api/products/catalog/preview", { method: "POST", body: data });
+    await renderProductsAdmin();
+    showToast(state.catalogImportPreview.message || "Prévia carregada.", "success");
+  }
+
+  async function importCatalog(form) {
+    const file = form.querySelector('input[name="file"]')?.files?.[0];
+    if (!file) {
+      throw new Error("Reenvie o arquivo para confirmar a importação.");
+    }
+
+    const data = new FormData(form);
+    const mapping = {
+      codeColumn: String(data.get("codeColumn") || ""),
+      descriptionColumn: String(data.get("descriptionColumn") || ""),
+      currentStockColumn: String(data.get("currentStockColumn") || ""),
+      minimumStockColumn: String(data.get("minimumStockColumn") || ""),
+      saleValueColumn: String(data.get("saleValueColumn") || ""),
+      imagePathColumn: String(data.get("imagePathColumn") || ""),
+      customColumns: data.getAll("customColumns").map((value) => String(value))
+    };
+
+    const upload = new FormData();
+    upload.append("file", file);
+    upload.append("mapping", JSON.stringify(mapping));
+    const result = await json("/api/products/catalog/import", { method: "POST", body: upload });
+    state.catalogImportPreview = null;
+    state.drafts.product = null;
+    await renderProductsAdmin();
+    showToast(`Importação concluída: ${result.created || 0} criado(s), ${result.updated || 0} atualizado(s).`, "success");
   }
 
   async function saveEmployee(form) {
@@ -1526,6 +1722,14 @@
 
   function locale() {
     return state.language === "en" ? "en-US" : "pt-BR";
+  }
+
+  function normalizeHeader(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/gi, "")
+      .toUpperCase();
   }
 
   function productInitials(product) {

@@ -1139,6 +1139,38 @@ td.actions {
   gap: 10px;
 }
 
+.catalog-import-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.catalog-import-panel .panel-heading {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.catalog-import-panel .panel-heading p,
+.import-preview strong {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.catalog-mapping,
+.custom-column-picker,
+.import-preview {
+  grid-column: 1 / -1;
+}
+
+.custom-column-picker select {
+  min-height: 150px;
+}
+
+.import-preview {
+  display: grid;
+  gap: 10px;
+}
+
 .empty {
   padding: 24px;
   color: var(--muted);
@@ -1186,6 +1218,13 @@ td.actions {
 
   .sidebar-collapsed .nav-item span {
     max-width: none;
+  }
+
+  .sidebar-toggle.icon-button {
+    width: auto;
+    min-width: 96px;
+    padding: 9px 12px;
+    flex-basis: auto;
   }
 
   .topbar {

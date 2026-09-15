@@ -41,6 +41,22 @@ public class XlsxWorkbookReader
             .ToList();
     }
 
+    public IReadOnlyList<SpreadsheetRow> ReadRows(byte[] workbookBytes)
+    {
+        using var stream = new MemoryStream(workbookBytes);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var sheetName = ReadXml(archive, "xl/workbook.xml")
+            .Descendants(Main + "sheet")
+            .FirstOrDefault()
+            ?.Attribute("name")
+            ?.Value ?? string.Empty;
+
+        return string.IsNullOrWhiteSpace(sheetName)
+            ? Array.Empty<SpreadsheetRow>()
+            : ReadRows(workbookBytes, sheetName);
+    }
+
     private static SpreadsheetRow ToSpreadsheetRow(Dictionary<int, string> headers, Dictionary<int, string> values)
     {
         var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

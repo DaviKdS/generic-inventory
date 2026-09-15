@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using GenericInventory.Auth.AccessControl;
 using GenericInventory.Products.Dtos;
 using GenericInventory.Products.Services;
@@ -11,11 +12,16 @@ namespace GenericInventory.Products.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly ProductsService _service;
+    private readonly CatalogImportService _catalogImportService;
     private readonly IWebHostEnvironment _environment;
 
-    public ProductsController(ProductsService service, IWebHostEnvironment environment)
+    public ProductsController(
+        ProductsService service,
+        CatalogImportService catalogImportService,
+        IWebHostEnvironment environment)
     {
         _service = service;
+        _catalogImportService = catalogImportService;
         _environment = environment;
     }
 
@@ -63,6 +69,46 @@ public class ProductsController : ControllerBase
         await file.CopyToAsync(stream, cancellationToken);
 
         return Ok(new { imagePath = $"/uploads/products/{fileName}" });
+    }
+
+    [Authorize(Policy = AccessPermissions.CatalogImport)]
+    [HttpPost("catalog/preview")]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<ActionResult<CatalogImportPreviewDto>> PreviewCatalog(IFormFile file, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _catalogImportService.PreviewAsync(file, cancellationToken));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = AccessPermissions.CatalogImport)]
+    [HttpPost("catalog/import")]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<ActionResult<CatalogImportResultDto>> ImportCatalog(
+        IFormFile file,
+        [FromForm] string mapping,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var parsedMapping = JsonSerializer.Deserialize<CatalogImportMappingDto>(
+                mapping,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new CatalogImportMappingDto();
+            return Ok(await _catalogImportService.ImportAsync(file, parsedMapping, cancellationToken));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (JsonException)
+        {
+            return BadRequest(new { message = "Mapeamento de importacao invalido." });
+        }
     }
 
     [Authorize(Policy = AccessPermissions.ProductsManage)]
