@@ -918,6 +918,188 @@ textarea {
   text-align: right;
 }
 
+.room-alert {
+  align-items: center;
+  background: rgba(var(--surface-rgb), 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.room-alert svg {
+  flex: 0 0 auto;
+  height: 28px;
+  width: 28px;
+}
+
+.room-alert strong,
+.room-alert span {
+  display: block;
+}
+
+.room-alert strong {
+  font-size: 1rem;
+}
+
+.room-alert span {
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.room-alert.good {
+  border-color: rgba(47, 125, 92, 0.28);
+}
+
+.room-alert.good svg {
+  color: var(--green);
+}
+
+.room-alert.warn {
+  border-color: rgba(155, 106, 22, 0.32);
+}
+
+.room-alert.warn svg {
+  color: var(--gold);
+}
+
+.room-alert.bad {
+  border-color: rgba(200, 82, 60, 0.32);
+}
+
+.room-alert.bad svg {
+  color: var(--coral);
+}
+
+.reservation-overview {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+}
+
+.reservation-form .panel-heading,
+.reservation-summary .panel-heading {
+  grid-column: 1 / -1;
+}
+
+.reservation-summary {
+  align-content: start;
+  display: grid;
+  gap: 14px;
+}
+
+.reservation-summary dl,
+.room-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.reservation-summary dl {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.reservation-summary div,
+.room-card dl div {
+  background: rgba(var(--surface-rgb), 0.64);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.reservation-summary dt,
+.room-card dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.reservation-summary dd,
+.room-card dd {
+  margin: 4px 0 0;
+  font-weight: 900;
+}
+
+.reservation-summary p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.room-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.room-card {
+  background: rgba(var(--surface-rgb), 0.9);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  transition:
+    border-color 180ms var(--motion-standard),
+    box-shadow 220ms var(--motion-standard),
+    transform 220ms var(--motion-standard);
+}
+
+.room-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.room-card.available {
+  border-left-color: var(--green);
+}
+
+.room-card.reserved,
+.room-card.cleaning {
+  border-left-color: var(--gold);
+}
+
+.room-card.occupied {
+  border-left-color: var(--coral);
+}
+
+.room-card.maintenance {
+  border-left-color: var(--muted);
+}
+
+.room-card header,
+.room-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.room-card h3 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.room-card p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.room-actions {
+  justify-content: flex-start;
+}
+
 .tag {
   border: 1px solid rgba(101, 119, 139, 0.1);
   border-radius: 999px;
@@ -1293,9 +1475,19 @@ td.actions {
   .metric-grid,
   .docs-grid,
   .visibility-grid,
+  .reservation-overview,
   .two-columns,
   .form-grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .reservation-summary dl {
+    grid-template-columns: 1fr;
+  }
+
+  .room-filter-group,
+  .room-filter-group .button {
+    width: 100%;
   }
 
   .custom-field-row {

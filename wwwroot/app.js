@@ -16,6 +16,8 @@
     products: [],
     employees: [],
     movements: [],
+    roomReservations: null,
+    roomFilter: { area: "all", status: "all" },
     reminders: [],
     reminderDelivery: null,
     powerAutomateSettings: null,
@@ -36,6 +38,7 @@
     { id: "out", label: { pt: "Saída", en: "Stock Out" }, icon: "log-out", permission: permissions.stockMove, title: { pt: "Saída", en: "Stock Out" }, subtitle: { pt: "Registre baixa de estoque.", en: "Register inventory withdrawals." } },
     { id: "in", label: { pt: "Entrada", en: "Stock In" }, icon: "log-in", permission: permissions.stockMove, title: { pt: "Entrada", en: "Stock In" }, subtitle: { pt: "Registre reposição de estoque.", en: "Register inventory replenishment." } },
     { id: "movements", label: { pt: "Movimentações", en: "Movements" }, icon: "list-filter", permission: permissions.stockRead, title: { pt: "Movimentações", en: "Movements" }, subtitle: { pt: "Histórico de entradas e saídas.", en: "History of stock entries and withdrawals." } },
+    { id: "rooms", label: { pt: "Reservas", en: "Reservations" }, icon: "hotel", permission: permissions.stockRead, title: { pt: "Reservas de quartos", en: "Room reservations" }, subtitle: { pt: "Monitoramento genérico de disponibilidade, reservas e ocupação sem dados pessoais.", en: "Generic monitoring for availability, reservations, and occupancy without personal data." } },
     { id: "products", label: { pt: "Itens", en: "Items" }, icon: "boxes", permission: permissions.productsManage, title: { pt: "Itens", en: "Items" }, subtitle: { pt: "Cadastro flexível do catálogo.", en: "Flexible catalog item registration." } },
     { id: "employees", label: { pt: "Funcionários", en: "Employees" }, icon: "users", permission: permissions.employeesManage, title: { pt: "Funcionários", en: "Employees" }, subtitle: { pt: "Pessoas disponíveis para movimentações.", en: "People available for inventory movements." } },
     { id: "reminders", label: { pt: "Lembretes", en: "Reminders" }, icon: "bell-ring", permission: permissions.remindersManage, title: { pt: "Lembretes", en: "Reminders" }, subtitle: { pt: "Regras editáveis de alerta de estoque.", en: "Editable stock alert rules." } },
@@ -491,6 +494,7 @@
     if (state.view === "out") return renderMovementForm("out");
     if (state.view === "in") return renderMovementForm("in");
     if (state.view === "movements") return renderMovements();
+    if (state.view === "rooms") return renderRoomReservations();
     if (state.view === "products") return renderProductsAdmin();
     if (state.view === "employees") return renderEmployeesAdmin();
     if (state.view === "reminders") return renderReminders();
@@ -759,6 +763,370 @@
         ${preview ? renderCatalogImportMapping(preview) : ""}
       </section>
     `;
+  }
+
+  async function renderRoomReservations() {
+    const data = loadRoomReservations();
+    const rooms = flattenRooms(data);
+    const visibleRooms = rooms.filter((item) =>
+      (state.roomFilter.area === "all" || item.areaId === state.roomFilter.area) &&
+      (state.roomFilter.status === "all" || item.status === state.roomFilter.status)
+    );
+    const total = rooms.length;
+    const available = rooms.filter((item) => item.status === "available").length;
+    const reserved = rooms.filter((item) => item.status === "reserved").length;
+    const occupied = rooms.filter((item) => item.status === "occupied").length;
+    const offline = rooms.filter((item) => ["maintenance", "cleaning"].includes(item.status)).length;
+    const operational = Math.max(1, total - offline);
+    const occupancy = Math.round((occupied / operational) * 100);
+    const checkoutsToday = rooms.filter((item) => isSameLocalDate(item.checkOut, new Date())).length;
+    const alert = roomReservationAlert(occupancy, available, offline);
+
+    elements.content.innerHTML = `
+      <section class="room-alert ${alert.tone}">
+        <i data-lucide="${escapeAttribute(alert.icon)}"></i>
+        <div>
+          <strong>${escapeHtml(alert.title)}</strong>
+          <span>${escapeHtml(alert.message)}</span>
+        </div>
+      </section>
+      <section class="metric-grid">
+        ${metric("Quartos", total)}
+        ${metric("Disponíveis", available, available ? "good" : "bad")}
+        ${metric("Reservados", reserved)}
+        ${metric("Ocupação", `${occupancy}%`, occupancy >= 90 ? "bad" : occupancy >= 75 ? "warn" : "good")}
+      </section>
+      <section class="reservation-overview">
+        <form class="panel form-grid reservation-form" data-room-reservation-form>
+          <div class="panel-heading">
+            <h2>Atualizar quarto</h2>
+            <span class="tag">Sem dados pessoais</span>
+          </div>
+          <label>
+            <span>Quarto</span>
+            <select name="roomKey" required>
+              ${rooms.map((item) => `<option value="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}">${escapeHtml(item.areaName)} · ${escapeHtml(item.label)}</option>`).join("")}
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select name="status" required>
+              ${roomStatusOptions()}
+            </select>
+          </label>
+          ${input("Código da reserva", "reservationCode", "", false)}
+          <label>
+            <span>Entrada prevista</span>
+            <input name="checkIn" type="date">
+          </label>
+          <label>
+            <span>Saída prevista</span>
+            <input name="checkOut" type="date">
+          </label>
+          <label>
+            <span>Observação operacional</span>
+            <input name="note" placeholder="Ex.: vistoria, limpeza, manutenção">
+          </label>
+          <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar status</span></button>
+        </form>
+        <section class="panel reservation-summary">
+          <div class="panel-heading">
+            <h2>Fluxo previsto</h2>
+            <span class="tag ${checkoutsToday ? "warn" : "good"}">${checkoutsToday} saída(s) hoje</span>
+          </div>
+          <dl>
+            <div><dt>Operacionais</dt><dd>${operational}</dd></div>
+            <div><dt>Fora de uso</dt><dd>${offline}</dd></div>
+            <div><dt>Taxa livre</dt><dd>${Math.round((available / Math.max(1, total)) * 100)}%</dd></div>
+          </dl>
+          <p>Use códigos internos de reserva. Não registre nome, documento, telefone, endereço ou dados sensíveis nesta tela.</p>
+        </section>
+      </section>
+      <section class="panel toolbar">
+        <div class="room-filter-group">
+          <button class="button ${state.roomFilter.area === "all" ? "primary" : "secondary"}" type="button" data-room-area="all">Todas as áreas</button>
+          ${data.areas.map((area) => `<button class="button ${state.roomFilter.area === area.id ? "primary" : "secondary"}" type="button" data-room-area="${escapeAttribute(area.id)}">${escapeHtml(area.name)}</button>`).join("")}
+        </div>
+        <select data-room-status-filter aria-label="Filtrar status">
+          <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
+          ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
+        </select>
+      </section>
+      <section class="room-grid">
+        ${visibleRooms.map(renderRoomCard).join("") || empty("Nenhum quarto encontrado para este filtro.")}
+      </section>
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Histórico operacional</h2>
+          <button class="button ghost" type="button" data-room-reset-demo><i data-lucide="rotate-ccw"></i><span>Restaurar exemplo</span></button>
+        </div>
+        ${renderRoomHistory(data.history)}
+      </section>
+    `;
+    refreshIcons();
+  }
+
+  function renderRoomCard(item) {
+    const status = roomStatuses().find((entry) => entry.id === item.status) || roomStatuses()[0];
+    const canOperate = can(permissions.stockMove);
+    return `
+      <article class="room-card ${escapeAttribute(item.status)}">
+        <header>
+          <span class="tag">${escapeHtml(item.areaName)}</span>
+          <span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span>
+        </header>
+        <h3>${escapeHtml(item.label)}</h3>
+        <dl>
+          <div><dt>Categoria</dt><dd>${escapeHtml(item.category)}</dd></div>
+          <div><dt>Capacidade</dt><dd>${escapeHtml(String(item.capacity))}</dd></div>
+          <div><dt>Reserva</dt><dd>${escapeHtml(item.reservationCode || "-")}</dd></div>
+          <div><dt>Período</dt><dd>${escapeHtml(formatRoomPeriod(item))}</dd></div>
+        </dl>
+        ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+        ${canOperate ? `
+          <div class="room-actions">
+            <button class="icon-button" type="button" title="Disponível" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|available"><i data-lucide="check"></i></button>
+            <button class="icon-button" type="button" title="Reservar" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|reserved"><i data-lucide="calendar-plus"></i></button>
+            <button class="icon-button" type="button" title="Ocupar" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|occupied"><i data-lucide="door-closed"></i></button>
+            <button class="icon-button" type="button" title="Limpeza" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|cleaning"><i data-lucide="sparkles"></i></button>
+            <button class="icon-button" type="button" title="Manutenção" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|maintenance"><i data-lucide="wrench"></i></button>
+          </div>
+        ` : ""}
+      </article>
+    `;
+  }
+
+  function renderRoomHistory(history = []) {
+    const recent = history.slice(0, 12);
+    if (!recent.length) return empty("Nenhum histórico de reserva registrado.");
+
+    return `
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Data</th><th>Quarto</th><th>Status</th><th>Código</th><th>Observação</th></tr></thead>
+          <tbody>
+            ${recent.map((entry) => {
+              const status = roomStatuses().find((item) => item.id === entry.status) || roomStatuses()[0];
+              return `
+                <tr>
+                  <td>${formatDateTime(entry.date)}</td>
+                  <td>${escapeHtml(entry.areaName)} · ${escapeHtml(entry.roomLabel)}</td>
+                  <td><span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span></td>
+                  <td>${escapeHtml(entry.reservationCode || "-")}</td>
+                  <td>${escapeHtml(entry.note || "-")}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function roomStatuses() {
+    return [
+      { id: "available", label: "Disponível", tone: "good" },
+      { id: "reserved", label: "Reservado", tone: "warn" },
+      { id: "occupied", label: "Ocupado", tone: "bad" },
+      { id: "cleaning", label: "Limpeza", tone: "warn" },
+      { id: "maintenance", label: "Manutenção", tone: "" }
+    ];
+  }
+
+  function roomStatusOptions() {
+    return roomStatuses()
+      .map((status) => `<option value="${escapeAttribute(status.id)}">${escapeHtml(status.label)}</option>`)
+      .join("");
+  }
+
+  function loadRoomReservations() {
+    if (!state.roomReservations) {
+      state.roomReservations = readStoredJson("generic-inventory.roomReservations", defaultRoomReservations());
+    }
+
+    return state.roomReservations;
+  }
+
+  function saveRoomReservations() {
+    localStorage.setItem("generic-inventory.roomReservations", JSON.stringify(state.roomReservations));
+  }
+
+  function defaultRoomReservations() {
+    return {
+      areas: [
+        {
+          id: "area-a",
+          name: "Área A",
+          rooms: [
+            roomSeed("A-101", "Individual", 1, "available"),
+            roomSeed("A-102", "Duplo", 2, "reserved", "RSV-2401", 1, 3),
+            roomSeed("A-103", "Duplo", 2, "occupied", "RSV-2398", -2, 1)
+          ]
+        },
+        {
+          id: "area-b",
+          name: "Área B",
+          rooms: [
+            roomSeed("B-201", "Individual", 1, "cleaning", "", "", "", "Limpeza em andamento"),
+            roomSeed("B-202", "Suíte", 3, "available"),
+            roomSeed("B-203", "Duplo", 2, "maintenance", "", "", "", "Vistoria técnica")
+          ]
+        },
+        {
+          id: "anexo",
+          name: "Anexo",
+          rooms: [
+            roomSeed("C-301", "Individual", 1, "reserved", "RSV-2402", 0, 2),
+            roomSeed("C-302", "Duplo", 2, "occupied", "RSV-2399", -1, 0),
+            roomSeed("C-303", "Flexível", 4, "available")
+          ]
+        }
+      ],
+      history: [
+        {
+          date: new Date().toISOString(),
+          areaName: "Anexo",
+          roomLabel: "C-302",
+          status: "occupied",
+          reservationCode: "RSV-2399",
+          note: "Saída prevista para hoje"
+        }
+      ]
+    };
+  }
+
+  function roomSeed(label, category, capacity, status, reservationCode = "", checkInOffset = "", checkOutOffset = "", note = "") {
+    const checkIn = checkInOffset === "" ? "" : toDateInputValue(addDays(new Date(), Number(checkInOffset)));
+    const checkOut = checkOutOffset === "" ? "" : toDateInputValue(addDays(new Date(), Number(checkOutOffset)));
+    return {
+      id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label,
+      category,
+      capacity,
+      status,
+      reservationCode,
+      checkIn,
+      checkOut,
+      note,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function flattenRooms(data) {
+    return data.areas.flatMap((area) =>
+      area.rooms.map((room) => ({
+        ...room,
+        areaId: area.id,
+        areaName: area.name
+      }))
+    );
+  }
+
+  function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "") {
+    const data = loadRoomReservations();
+    const [areaId, roomId] = String(roomKey || "").split("|");
+    const area = data.areas.find((item) => item.id === areaId);
+    const room = area?.rooms.find((item) => item.id === roomId);
+    if (!area || !room) {
+      throw new Error("Quarto não encontrado.");
+    }
+
+    const safeCode = sanitizeReservationCode(reservationCode || room.reservationCode || "");
+    const nextCode = ["reserved", "occupied"].includes(status)
+      ? safeCode || `RSV-${String(Date.now()).slice(-6)}`
+      : "";
+
+    room.status = status;
+    room.reservationCode = nextCode;
+    room.checkIn = ["reserved", "occupied"].includes(status) ? checkIn || room.checkIn || todayInputValue() : "";
+    room.checkOut = ["reserved", "occupied"].includes(status) ? checkOut || room.checkOut || "" : "";
+    room.note = sanitizeOperationalNote(note || (status === "cleaning" ? "Limpeza em andamento" : status === "maintenance" ? "Manutenção programada" : ""));
+    room.updatedAt = new Date().toISOString();
+
+    data.history.unshift({
+      date: room.updatedAt,
+      areaName: area.name,
+      roomLabel: room.label,
+      status,
+      reservationCode: room.reservationCode,
+      note: room.note
+    });
+    data.history = data.history.slice(0, 60);
+    saveRoomReservations();
+  }
+
+  function roomReservationAlert(occupancy, available, offline) {
+    if (occupancy >= 90 || available === 0) {
+      return {
+        tone: "bad",
+        icon: "triangle-alert",
+        title: "Capacidade crítica",
+        message: "Poucos quartos disponíveis. Revise reservas próximas, limpezas e manutenção."
+      };
+    }
+
+    if (offline > 0 || occupancy >= 75) {
+      return {
+        tone: "warn",
+        icon: "circle-alert",
+        title: "Atenção operacional",
+        message: "Há quartos fora de uso ou ocupação elevada. Acompanhe o fluxo previsto."
+      };
+    }
+
+    return {
+      tone: "good",
+      icon: "circle-check",
+      title: "Operação equilibrada",
+      message: "Disponibilidade confortável para novas reservas."
+    };
+  }
+
+  function sanitizeReservationCode(value) {
+    return String(value || "")
+      .trim()
+      .replace(/[^a-z0-9-]/gi, "")
+      .slice(0, 24)
+      .toUpperCase();
+  }
+
+  function sanitizeOperationalNote(value) {
+    return String(value || "")
+      .trim()
+      .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, "[documento removido]")
+      .replace(/\b[\w.%+-]+@[\w.-]+\.[a-z]{2,}\b/gi, "[e-mail removido]")
+      .replace(/\+?\d[\d\s().-]{7,}\d/g, "[telefone removido]")
+      .slice(0, 120);
+  }
+
+  function formatRoomPeriod(room) {
+    if (!room.checkIn && !room.checkOut) return "-";
+    return `${room.checkIn ? formatDateOnly(room.checkIn) : "-"} → ${room.checkOut ? formatDateOnly(room.checkOut) : "-"}`;
+  }
+
+  function todayInputValue() {
+    return toDateInputValue(new Date());
+  }
+
+  function toDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function addDays(date, days) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
+  function isSameLocalDate(value, date) {
+    if (!value) return false;
+    const candidate = new Date(`${value}T00:00:00`);
+    return candidate.getFullYear() === date.getFullYear() &&
+      candidate.getMonth() === date.getMonth() &&
+      candidate.getDate() === date.getDate();
   }
 
   function renderCatalogImportMapping(preview) {
@@ -1225,6 +1593,11 @@
           <p>Developer users can upload XLSX, CSV, or searchable PDF catalogs, preview detected columns, choose the fields to import, and create or update items.</p>
         </article>
         <article class="panel doc-card">
+          <i data-lucide="hotel"></i>
+          <h2>Generic room reservations</h2>
+          <p>The Reservations page monitors availability, reservations, occupancy, cleaning, and maintenance using only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
+        </article>
+        <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
           <h2>Next update task</h2>
           <p>Screen visibility for Admin and User is controlled by Developer, including the Access screen. Developer can also define user passwords directly. The next task is an editable Developer screen for configuring visible fields and custom field behavior by access level.</p>
@@ -1257,6 +1630,11 @@
           <i data-lucide="file-spreadsheet"></i>
           <h2>Importação Developer</h2>
           <p>Usuários Developer podem enviar catálogos XLSX, CSV ou PDF pesquisável, visualizar colunas detectadas, escolher campos a importar e criar ou atualizar itens.</p>
+        </article>
+        <article class="panel doc-card">
+          <i data-lucide="hotel"></i>
+          <h2>Reservas genéricas de quartos</h2>
+          <p>A tela Reservas monitora disponibilidade, reserva, ocupação, limpeza e manutenção usando apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1313,6 +1691,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.6-beta</span>
+            <h2>${state.language === "en" ? "Generic room reservation monitoring" : "Monitoramento genérico de reservas de quartos"}</h2>
+            <p>${state.language === "en"
+              ? "Adds a Reservations page inspired by operational occupancy dashboards, adapted to the app interface and designed without guest personal data."
+              : "Adiciona uma tela Reservas inspirada em painéis operacionais de ocupação, adaptada à interface do app e projetada sem dados pessoais de hóspedes."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.5-beta</span>
@@ -1404,6 +1791,21 @@
         selectProduct(target.dataset.stockIn);
       } else if (target.dataset.criticalOnly !== undefined) {
         await renderStock("", true);
+      } else if (target.dataset.roomArea) {
+        state.roomFilter.area = target.dataset.roomArea;
+        await renderRoomReservations();
+      } else if (target.dataset.roomQuick) {
+        const [areaId, roomId, status] = target.dataset.roomQuick.split("|");
+        updateRoomReservation(`${areaId}|${roomId}`, status);
+        showToast("Status do quarto atualizado.", "success");
+        await renderRoomReservations();
+      } else if (target.dataset.roomResetDemo !== undefined) {
+        if (confirm("Restaurar os dados de exemplo de reservas?")) {
+          state.roomReservations = defaultRoomReservations();
+          saveRoomReservations();
+          showToast("Exemplo de reservas restaurado.", "success");
+          await renderRoomReservations();
+        }
       } else if (target.dataset.editProduct) {
         state.drafts.product = state.products.find((product) => product.code === target.dataset.editProduct);
         await renderProductsAdmin();
@@ -1533,6 +1935,8 @@
         await previewCatalogImport(form);
       } else if (form.dataset.catalogImportForm !== undefined) {
         await importCatalog(form);
+      } else if (form.dataset.roomReservationForm !== undefined) {
+        await saveRoomReservationForm(form);
       } else if (form.dataset.employeeForm !== undefined) {
         await saveEmployee(form);
       } else if (form.dataset.reminderForm !== undefined) {
@@ -1571,6 +1975,13 @@
       return;
     }
 
+    const statusFilter = event.target.closest("[data-room-status-filter]");
+    if (statusFilter) {
+      state.roomFilter.status = statusFilter.value || "all";
+      await renderRoomReservations();
+      return;
+    }
+
     const input = event.target.closest("[data-import-file]");
     if (!input || !input.files.length) return;
 
@@ -1601,6 +2012,21 @@
     });
     showToast("Movimento registrado.", "success");
     form.reset();
+  }
+
+  async function saveRoomReservationForm(form) {
+    const data = new FormData(form);
+    updateRoomReservation(
+      String(data.get("roomKey") || ""),
+      String(data.get("status") || "available"),
+      String(data.get("reservationCode") || ""),
+      String(data.get("checkIn") || ""),
+      String(data.get("checkOut") || ""),
+      String(data.get("note") || "")
+    );
+    showToast("Reserva atualizada.", "success");
+    form.reset();
+    await renderRoomReservations();
   }
 
   async function saveProduct(form) {
@@ -1971,6 +2397,17 @@
     return value ? new Date(value).toLocaleDateString(locale()) : "";
   }
 
+  function formatDateOnly(value) {
+    if (!value) return "";
+    const [year, month, day] = String(value).split("-").map(Number);
+    if (!year || !month || !day) return formatDate(value);
+    return new Date(year, month - 1, day).toLocaleDateString(locale());
+  }
+
+  function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) : "";
+  }
+
   function locale() {
     return state.language === "en" ? "en-US" : "pt-BR";
   }
@@ -2018,6 +2455,15 @@
   function readStoredString(key, fallback = "") {
     try {
       return localStorage.getItem(key) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readStoredJson(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
     } catch {
       return fallback;
     }
