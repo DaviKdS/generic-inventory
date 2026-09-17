@@ -18,6 +18,7 @@
     movements: [],
     roomReservations: null,
     roomFilter: { area: "all", status: "all" },
+    selectedRoomKey: "",
     reminders: [],
     reminderDelivery: null,
     powerAutomateSettings: null,
@@ -805,7 +806,10 @@
           <label>
             <span>Quarto</span>
             <select name="roomKey" required>
-              ${rooms.map((item) => `<option value="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}">${escapeHtml(item.areaName)} · ${escapeHtml(item.label)}</option>`).join("")}
+              ${rooms.map((item) => {
+                const key = `${item.areaId}|${item.id}`;
+                return `<option value="${escapeAttribute(key)}" ${state.selectedRoomKey === key ? "selected" : ""}>${escapeHtml(item.areaName)} · ${escapeHtml(item.label)}</option>`;
+              }).join("")}
             </select>
           </label>
           <label>
@@ -841,6 +845,34 @@
           </dl>
           <p>Use códigos internos de reserva. Não registre nome, documento, telefone, endereço ou dados sensíveis nesta tela.</p>
         </section>
+        <form class="panel form-grid room-add-form" data-room-add-form>
+          <div class="panel-heading">
+            <h2>Adicionar quarto</h2>
+            <span class="tag good">Mapa</span>
+          </div>
+          <label>
+            <span>Área</span>
+            <select name="areaId">
+              ${data.areas.map((area) => `<option value="${escapeAttribute(area.id)}">${escapeHtml(area.name)}</option>`).join("")}
+              <option value="new">Nova área</option>
+            </select>
+          </label>
+          ${input("Nome da nova área", "newAreaName", "", false)}
+          ${input("Número/código do quarto", "roomLabel", "", true)}
+          ${input("Categoria", "category", "Individual")}
+          ${input("Capacidade", "capacity", 1, true, "number")}
+          <button class="button secondary" type="submit"><i data-lucide="plus"></i><span>Adicionar quarto</span></button>
+        </form>
+      </section>
+      <section class="panel room-map-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Mapa dos quartos</h2>
+            <p>Visão rápida por área, status e código interno de reserva.</p>
+          </div>
+          <span class="tag">${visibleRooms.length} visível(is)</span>
+        </div>
+        ${renderRoomMap(data, visibleRooms)}
       </section>
       <section class="panel toolbar">
         <div class="room-filter-group">
@@ -896,6 +928,42 @@
     `;
   }
 
+  function renderRoomMap(data, visibleRooms) {
+    const visibleKeys = new Set(visibleRooms.map((item) => `${item.areaId}|${item.id}`));
+    return `
+      <div class="room-map">
+        ${data.areas.map((area) => {
+          const rooms = area.rooms
+            .map((room) => ({ ...room, areaId: area.id, areaName: area.name }))
+            .filter((room) => visibleKeys.has(`${room.areaId}|${room.id}`));
+          if (!rooms.length) return "";
+
+          return `
+            <section class="room-map-area">
+              <header>
+                <h3>${escapeHtml(area.name)}</h3>
+                <span>${rooms.length} quarto(s)</span>
+              </header>
+              <div class="room-map-tiles">
+                ${rooms.map((room) => {
+                  const status = roomStatuses().find((item) => item.id === room.status) || roomStatuses()[0];
+                  const key = `${room.areaId}|${room.id}`;
+                  return `
+                    <button class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}" type="button" data-room-pick="${escapeAttribute(key)}" title="${escapeAttribute(status.label)}">
+                      <strong>${escapeHtml(room.label)}</strong>
+                      <span>${escapeHtml(status.label)}</span>
+                      <small>${escapeHtml(room.reservationCode || room.category)}</small>
+                    </button>
+                  `;
+                }).join("")}
+              </div>
+            </section>
+          `;
+        }).join("") || empty("Nenhum quarto disponível no mapa atual.")}
+      </div>
+    `;
+  }
+
   function renderRoomHistory(history = []) {
     const recent = history.slice(0, 12);
     if (!recent.length) return empty("Nenhum histórico de reserva registrado.");
@@ -941,7 +1009,7 @@
 
   function loadRoomReservations() {
     if (!state.roomReservations) {
-      state.roomReservations = readStoredJson("generic-inventory.roomReservations", defaultRoomReservations());
+      state.roomReservations = normalizeRoomReservations(readStoredJson("generic-inventory.roomReservations", defaultRoomReservations()));
     }
 
     return state.roomReservations;
@@ -960,7 +1028,10 @@
           rooms: [
             roomSeed("A-101", "Individual", 1, "available"),
             roomSeed("A-102", "Duplo", 2, "reserved", "RSV-2401", 1, 3),
-            roomSeed("A-103", "Duplo", 2, "occupied", "RSV-2398", -2, 1)
+            roomSeed("A-103", "Duplo", 2, "occupied", "RSV-2398", -2, 1),
+            roomSeed("A-104", "Individual", 1, "available"),
+            roomSeed("A-105", "Flexível", 3, "available"),
+            roomSeed("A-106", "Duplo", 2, "cleaning", "", "", "", "Limpeza programada")
           ]
         },
         {
@@ -969,16 +1040,34 @@
           rooms: [
             roomSeed("B-201", "Individual", 1, "cleaning", "", "", "", "Limpeza em andamento"),
             roomSeed("B-202", "Suíte", 3, "available"),
-            roomSeed("B-203", "Duplo", 2, "maintenance", "", "", "", "Vistoria técnica")
+            roomSeed("B-203", "Duplo", 2, "maintenance", "", "", "", "Vistoria técnica"),
+            roomSeed("B-204", "Individual", 1, "reserved", "RSV-2403", 0, 2),
+            roomSeed("B-205", "Duplo", 2, "available"),
+            roomSeed("B-206", "Flexível", 4, "occupied", "RSV-2397", -3, 1)
+          ]
+        },
+        {
+          id: "area-c",
+          name: "Área C",
+          rooms: [
+            roomSeed("C-301", "Individual", 1, "reserved", "RSV-2402", 0, 2),
+            roomSeed("C-302", "Duplo", 2, "occupied", "RSV-2399", -1, 0),
+            roomSeed("C-303", "Flexível", 4, "available"),
+            roomSeed("C-304", "Individual", 1, "available"),
+            roomSeed("C-305", "Suíte", 3, "reserved", "RSV-2404", 2, 5),
+            roomSeed("C-306", "Duplo", 2, "available")
           ]
         },
         {
           id: "anexo",
           name: "Anexo",
           rooms: [
-            roomSeed("C-301", "Individual", 1, "reserved", "RSV-2402", 0, 2),
-            roomSeed("C-302", "Duplo", 2, "occupied", "RSV-2399", -1, 0),
-            roomSeed("C-303", "Flexível", 4, "available")
+            roomSeed("D-401", "Individual", 1, "available"),
+            roomSeed("D-402", "Duplo", 2, "available"),
+            roomSeed("D-403", "Flexível", 4, "occupied", "RSV-2400", -1, 3),
+            roomSeed("D-404", "Individual", 1, "maintenance", "", "", "", "Manutenção preventiva"),
+            roomSeed("D-405", "Duplo", 2, "reserved", "RSV-2405", 1, 4),
+            roomSeed("D-406", "Suíte", 3, "available")
           ]
         }
       ],
@@ -993,6 +1082,37 @@
         }
       ]
     };
+  }
+
+  function normalizeRoomReservations(data) {
+    const fallback = defaultRoomReservations();
+    const normalized = data && Array.isArray(data.areas) ? data : fallback;
+    normalized.history = Array.isArray(normalized.history) ? normalized.history : [];
+
+    const legacyAnexo = normalized.areas.find((area) => area.id === "anexo");
+    const hasAreaC = normalized.areas.some((area) => area.id === "area-c");
+    if (!hasAreaC && legacyAnexo?.rooms?.some((room) => String(room.label || "").startsWith("C-"))) {
+      legacyAnexo.id = "area-c";
+      legacyAnexo.name = "Área C";
+    }
+
+    fallback.areas.forEach((defaultArea) => {
+      let area = normalized.areas.find((item) => item.id === defaultArea.id);
+      if (!area) {
+        normalized.areas.push(defaultArea);
+        return;
+      }
+
+      area.name = area.name || defaultArea.name;
+      area.rooms = Array.isArray(area.rooms) ? area.rooms : [];
+      defaultArea.rooms.forEach((defaultRoom) => {
+        if (!area.rooms.some((room) => room.id === defaultRoom.id || room.label === defaultRoom.label)) {
+          area.rooms.push(defaultRoom);
+        }
+      });
+    });
+
+    return normalized;
   }
 
   function roomSeed(label, category, capacity, status, reservationCode = "", checkInOffset = "", checkOutOffset = "", note = "") {
@@ -1055,6 +1175,50 @@
     saveRoomReservations();
   }
 
+  function addRoomReservation(areaId, newAreaName, roomLabel, category, capacity) {
+    const data = loadRoomReservations();
+    const label = sanitizeRoomLabel(roomLabel);
+    if (!label) {
+      throw new Error("Informe o número ou código do quarto.");
+    }
+
+    let area = data.areas.find((item) => item.id === areaId);
+    if (areaId === "new") {
+      const name = sanitizeOperationalNote(newAreaName) || "Nova área";
+      const id = slugify(name);
+      if (data.areas.some((item) => item.id === id)) {
+        throw new Error("Já existe uma área com este nome.");
+      }
+      area = { id, name, rooms: [] };
+      data.areas.push(area);
+    }
+
+    if (!area) {
+      throw new Error("Área não encontrada.");
+    }
+
+    const roomId = slugify(label);
+    if (flattenRooms(data).some((room) => room.id === roomId || room.label.toLowerCase() === label.toLowerCase())) {
+      throw new Error("Já existe um quarto com este número/código.");
+    }
+
+    const room = roomSeed(label, sanitizeOperationalNote(category) || "Individual", Math.max(1, Number(capacity || 1)), "available");
+    area.rooms.push(room);
+    data.history.unshift({
+      date: new Date().toISOString(),
+      areaName: area.name,
+      roomLabel: room.label,
+      status: "available",
+      reservationCode: "",
+      note: "Quarto adicionado"
+    });
+    data.history = data.history.slice(0, 60);
+    state.selectedRoomKey = `${area.id}|${room.id}`;
+    state.roomFilter.area = area.id;
+    state.roomFilter.status = "all";
+    saveRoomReservations();
+  }
+
   function roomReservationAlert(occupancy, available, offline) {
     if (occupancy >= 90 || available === 0) {
       return {
@@ -1097,6 +1261,24 @@
       .replace(/\b[\w.%+-]+@[\w.-]+\.[a-z]{2,}\b/gi, "[e-mail removido]")
       .replace(/\+?\d[\d\s().-]{7,}\d/g, "[telefone removido]")
       .slice(0, 120);
+  }
+
+  function sanitizeRoomLabel(value) {
+    return String(value || "")
+      .trim()
+      .replace(/[^a-z0-9-]/gi, "")
+      .slice(0, 16)
+      .toUpperCase();
+  }
+
+  function slugify(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || `area-${Date.now()}`;
   }
 
   function formatRoomPeriod(room) {
@@ -1595,7 +1777,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Generic room reservations</h2>
-          <p>The Reservations page monitors availability, reservations, occupancy, cleaning, and maintenance using only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
+          <p>The Reservations page starts with 24 generic rooms, includes a visual room map, lets operators add more rooms, and uses only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1634,7 +1816,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Reservas genéricas de quartos</h2>
-          <p>A tela Reservas monitora disponibilidade, reserva, ocupação, limpeza e manutenção usando apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
+          <p>A tela Reservas inicia com 24 quartos genéricos, inclui mapa visual dos quartos, permite adicionar novos quartos e usa apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1691,6 +1873,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.7-beta</span>
+            <h2>${state.language === "en" ? "Expanded room map and room creation" : "Mapa expandido e criação de quartos"}</h2>
+            <p>${state.language === "en"
+              ? "Expands the reservation monitor to 24 initial rooms, adds a visual map grouped by area, and includes controls to add more rooms without personal guest data."
+              : "Expande o monitor de reservas para 24 quartos iniciais, adiciona um mapa visual agrupado por área e inclui controles para adicionar novos quartos sem dados pessoais de hóspedes."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.6-beta</span>
@@ -1794,8 +1985,14 @@
       } else if (target.dataset.roomArea) {
         state.roomFilter.area = target.dataset.roomArea;
         await renderRoomReservations();
+      } else if (target.dataset.roomPick) {
+        state.selectedRoomKey = target.dataset.roomPick;
+        const [areaId] = target.dataset.roomPick.split("|");
+        state.roomFilter.area = areaId;
+        await renderRoomReservations();
       } else if (target.dataset.roomQuick) {
         const [areaId, roomId, status] = target.dataset.roomQuick.split("|");
+        state.selectedRoomKey = `${areaId}|${roomId}`;
         updateRoomReservation(`${areaId}|${roomId}`, status);
         showToast("Status do quarto atualizado.", "success");
         await renderRoomReservations();
@@ -1937,6 +2134,8 @@
         await importCatalog(form);
       } else if (form.dataset.roomReservationForm !== undefined) {
         await saveRoomReservationForm(form);
+      } else if (form.dataset.roomAddForm !== undefined) {
+        await saveRoomAddForm(form);
       } else if (form.dataset.employeeForm !== undefined) {
         await saveEmployee(form);
       } else if (form.dataset.reminderForm !== undefined) {
@@ -2016,8 +2215,9 @@
 
   async function saveRoomReservationForm(form) {
     const data = new FormData(form);
+    state.selectedRoomKey = String(data.get("roomKey") || "");
     updateRoomReservation(
-      String(data.get("roomKey") || ""),
+      state.selectedRoomKey,
       String(data.get("status") || "available"),
       String(data.get("reservationCode") || ""),
       String(data.get("checkIn") || ""),
@@ -2025,6 +2225,20 @@
       String(data.get("note") || "")
     );
     showToast("Reserva atualizada.", "success");
+    form.reset();
+    await renderRoomReservations();
+  }
+
+  async function saveRoomAddForm(form) {
+    const data = new FormData(form);
+    addRoomReservation(
+      String(data.get("areaId") || ""),
+      String(data.get("newAreaName") || ""),
+      String(data.get("roomLabel") || ""),
+      String(data.get("category") || ""),
+      Number(data.get("capacity") || 1)
+    );
+    showToast("Quarto adicionado ao mapa.", "success");
     form.reset();
     await renderRoomReservations();
   }

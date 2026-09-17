@@ -976,15 +976,17 @@ textarea {
 .reservation-overview {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.6fr) minmax(260px, 0.75fr);
 }
 
 .reservation-form .panel-heading,
-.reservation-summary .panel-heading {
+.reservation-summary .panel-heading,
+.room-add-form .panel-heading {
   grid-column: 1 / -1;
 }
 
-.reservation-summary {
+.reservation-summary,
+.room-add-form {
   align-content: start;
   display: grid;
   gap: 14px;
@@ -1031,6 +1033,113 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.room-map-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.room-map-panel .panel-heading p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.room-map {
+  display: grid;
+  gap: 16px;
+}
+
+.room-map-area {
+  display: grid;
+  gap: 10px;
+}
+
+.room-map-area header {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.room-map-area h3 {
+  font-size: 0.98rem;
+  margin: 0;
+}
+
+.room-map-area header span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.room-map-tiles {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+
+.room-map-tile {
+  background: rgba(var(--surface-rgb), 0.82);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  color: var(--ink);
+  display: grid;
+  gap: 3px;
+  min-height: 86px;
+  padding: 10px;
+  text-align: left;
+  transition:
+    border-color 180ms var(--motion-standard),
+    box-shadow 220ms var(--motion-standard),
+    transform 220ms var(--motion-standard);
+}
+
+.room-map-tile:hover,
+.room-map-tile.selected {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.room-map-tile.available {
+  border-left-color: var(--green);
+}
+
+.room-map-tile.reserved,
+.room-map-tile.cleaning {
+  border-left-color: var(--gold);
+}
+
+.room-map-tile.occupied {
+  border-left-color: var(--coral);
+}
+
+.room-map-tile.maintenance {
+  border-left-color: var(--muted);
+}
+
+.room-map-tile strong {
+  font-size: 1rem;
+}
+
+.room-map-tile span,
+.room-map-tile small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-map-tile span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.room-map-tile small {
+  color: var(--ink);
+  font-size: 0.72rem;
 }
 
 .room-grid {
