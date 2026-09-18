@@ -23,7 +23,9 @@ if (!builder.Environment.IsDevelopment())
 {
     builder.WebHost.ConfigureKestrel(serverOptions =>
     {
-        serverOptions.ListenAnyIP(80);
+        var portValue = Environment.GetEnvironmentVariable("PORT");
+        var port = int.TryParse(portValue, out var parsedPort) ? parsedPort : 80;
+        serverOptions.ListenAnyIP(port);
     });
 }
 

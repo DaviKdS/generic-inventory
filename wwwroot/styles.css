@@ -979,6 +979,10 @@ textarea {
   grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.6fr) minmax(260px, 0.75fr);
 }
 
+.reservation-overview.summary-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .reservation-form .panel-heading,
 .reservation-summary .panel-heading,
 .room-add-form .panel-heading {
@@ -1081,6 +1085,11 @@ textarea {
   justify-content: flex-end;
 }
 
+.room-map-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .room-map {
   display: grid;
   gap: 16px;
@@ -1125,11 +1134,38 @@ textarea {
   gap: 3px;
   min-height: 86px;
   padding: 10px;
+  padding-right: 46px;
+  position: relative;
   text-align: left;
   transition:
     border-color 180ms var(--motion-standard),
     box-shadow 220ms var(--motion-standard),
     transform 220ms var(--motion-standard);
+}
+
+.room-map-edit {
+  align-items: center;
+  background: rgba(var(--surface-rgb), 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 32px;
+}
+
+.room-map-edit:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.room-map-edit svg {
+  height: 16px;
+  width: 16px;
 }
 
 .room-map-tile:hover,

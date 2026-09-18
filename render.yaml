@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: generic-inventory
+    env: docker
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: 8080
+      - key: App__PublicBaseUrl
+        sync: false

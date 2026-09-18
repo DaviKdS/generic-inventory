@@ -19,6 +19,7 @@
     roomReservations: null,
     roomFilter: { status: "all" },
     selectedRoomKey: "",
+    roomAction: "",
     reminders: [],
     reminderDelivery: null,
     powerAutomateSettings: null,
@@ -798,10 +799,30 @@
         ${metric("Reservados", reserved)}
         ${metric("Ocupação", `${occupancy}%`, occupancy >= 90 ? "bad" : occupancy >= 75 ? "warn" : "good")}
       </section>
-      <section class="reservation-overview">
+      <details class="panel room-map-panel" open>
+        <summary class="panel-heading room-map-heading">
+          <div>
+            <h2>Mapa das camas</h2>
+            <p>Use o lápis em uma cama para editar status ou o botão geral de adição para criar uma nova cama.</p>
+          </div>
+          <span class="tag">${visibleRooms.length} visível(is)</span>
+        </summary>
+        <div class="room-map-actions">
+          <button class="button secondary" type="button" data-room-show-add><i data-lucide="plus"></i><span>Adicionar cama</span></button>
+        </div>
+        ${renderRoomMap(data, visibleRooms)}
+      </details>
+      <section class="panel toolbar">
+        <select data-room-status-filter aria-label="Filtrar status">
+          <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
+          ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
+        </select>
+      </section>
+      <section class="reservation-overview ${state.roomAction ? "" : "summary-only"}">
+        ${state.roomAction === "edit" ? `
         <form class="panel form-grid reservation-form" data-room-reservation-form>
           <div class="panel-heading">
-            <h2>Atualizar cama</h2>
+            <h2>Editar status</h2>
             <span class="tag">Sem dados pessoais</span>
           </div>
           <label>
@@ -837,6 +858,19 @@
           </label>
           <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar status</span></button>
         </form>
+        ` : ""}
+        ${state.roomAction === "add" ? `
+        <form class="panel form-grid room-add-form" data-room-add-form>
+          <div class="panel-heading">
+            <h2>Adicionar cama</h2>
+            <span class="tag good">Mapa</span>
+          </div>
+          ${input("Identificação da cama", "roomLabel", nextBedLabel(rooms))}
+          ${input("Tipo/categoria", "category", "Leito")}
+          ${input("Capacidade", "capacity", 1, true, "number")}
+          <button class="button secondary" type="submit"><i data-lucide="plus"></i><span>Adicionar cama</span></button>
+        </form>
+        ` : ""}
         <section class="panel reservation-summary">
           <div class="panel-heading">
             <h2>Fluxo previsto</h2>
@@ -849,32 +883,6 @@
           </dl>
           <p>Use códigos internos de reserva. Não registre nome, documento, telefone, endereço ou dados sensíveis nesta tela.</p>
         </section>
-        <form class="panel form-grid room-add-form" data-room-add-form>
-          <div class="panel-heading">
-            <h2>Adicionar cama</h2>
-            <span class="tag good">Mapa</span>
-          </div>
-          ${input("Identificação da cama", "roomLabel", nextBedLabel(rooms))}
-          ${input("Tipo/categoria", "category", "Leito")}
-          ${input("Capacidade", "capacity", 1, true, "number")}
-          <button class="button secondary" type="submit"><i data-lucide="plus"></i><span>Adicionar cama</span></button>
-        </form>
-      </section>
-      <details class="panel room-map-panel">
-        <summary class="panel-heading">
-          <div>
-            <h2>Mapa das camas</h2>
-            <p>Visão rápida por status e código interno de reserva.</p>
-          </div>
-          <span class="tag">${visibleRooms.length} visível(is)</span>
-        </summary>
-        ${renderRoomMap(data, visibleRooms)}
-      </details>
-      <section class="panel toolbar">
-        <select data-room-status-filter aria-label="Filtrar status">
-          <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
-          ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
-        </select>
       </section>
       <section class="room-grid">
         ${visibleRooms.map(renderRoomCard).join("") || empty("Nenhuma cama encontrada para este filtro.")}
@@ -936,11 +944,12 @@
               const status = roomStatuses().find((item) => item.id === room.status) || roomStatuses()[0];
               const key = `${room.areaId}|${room.id}`;
               return `
-                <button class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}" type="button" data-room-pick="${escapeAttribute(key)}" title="${escapeAttribute(status.label)}">
+                <article class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}">
+                  <button class="room-map-edit" type="button" data-room-edit="${escapeAttribute(key)}" title="Editar status de ${escapeAttribute(room.label)}" aria-label="Editar status de ${escapeAttribute(room.label)}"><i data-lucide="pencil"></i></button>
                   <strong>${escapeHtml(room.label)}</strong>
                   <span>${escapeHtml(status.label)}</span>
                   <small>${escapeHtml(room.reservationCode || room.category)}</small>
-                </button>
+                </article>
               `;
             }).join("")}
           </div>
@@ -1941,8 +1950,12 @@
         selectProduct(target.dataset.stockIn);
       } else if (target.dataset.criticalOnly !== undefined) {
         await renderStock("", true);
-      } else if (target.dataset.roomPick) {
-        state.selectedRoomKey = target.dataset.roomPick;
+      } else if (target.dataset.roomShowAdd !== undefined) {
+        state.roomAction = "add";
+        await renderRoomReservations();
+      } else if (target.dataset.roomEdit) {
+        state.selectedRoomKey = target.dataset.roomEdit;
+        state.roomAction = "edit";
         await renderRoomReservations();
       } else if (target.dataset.roomQuick) {
         const [areaId, roomId, status] = target.dataset.roomQuick.split("|");
@@ -2131,6 +2144,7 @@
     const statusFilter = event.target.closest("[data-room-status-filter]");
     if (statusFilter) {
       state.roomFilter.status = statusFilter.value || "all";
+      state.roomAction = "";
       await renderRoomReservations();
       return;
     }
@@ -2138,6 +2152,7 @@
     const roomSelect = event.target.closest("[data-room-reservation-form] select[name='roomKey']");
     if (roomSelect) {
       state.selectedRoomKey = roomSelect.value;
+      state.roomAction = "edit";
       await renderRoomReservations();
       return;
     }
@@ -2189,7 +2204,6 @@
       Number(data.get("capacity") || 1)
     );
     showToast("Reserva atualizada.", "success");
-    form.reset();
     await renderRoomReservations();
   }
 
@@ -2201,7 +2215,7 @@
       Number(data.get("capacity") || 1)
     );
     showToast("Cama adicionada ao mapa.", "success");
-    form.reset();
+    state.roomAction = "edit";
     await renderRoomReservations();
   }
 

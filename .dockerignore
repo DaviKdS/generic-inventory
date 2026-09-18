@@ -1,0 +1,14 @@
+bin/
+obj/
+GenericInventory.Tests/bin/
+GenericInventory.Tests/obj/
+App_Data/
+.git/
+.github/
+.vs/
+.vscode/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
