@@ -17,7 +17,7 @@
     employees: [],
     movements: [],
     roomReservations: null,
-    roomFilter: { area: "all", status: "all" },
+    roomFilter: { status: "all" },
     selectedRoomKey: "",
     reminders: [],
     reminderDelivery: null,
@@ -39,7 +39,7 @@
     { id: "out", label: { pt: "Saída", en: "Stock Out" }, icon: "log-out", permission: permissions.stockMove, title: { pt: "Saída", en: "Stock Out" }, subtitle: { pt: "Registre baixa de estoque.", en: "Register inventory withdrawals." } },
     { id: "in", label: { pt: "Entrada", en: "Stock In" }, icon: "log-in", permission: permissions.stockMove, title: { pt: "Entrada", en: "Stock In" }, subtitle: { pt: "Registre reposição de estoque.", en: "Register inventory replenishment." } },
     { id: "movements", label: { pt: "Movimentações", en: "Movements" }, icon: "list-filter", permission: permissions.stockRead, title: { pt: "Movimentações", en: "Movements" }, subtitle: { pt: "Histórico de entradas e saídas.", en: "History of stock entries and withdrawals." } },
-    { id: "rooms", label: { pt: "Reservas", en: "Reservations" }, icon: "hotel", permission: permissions.stockRead, title: { pt: "Reservas de quartos", en: "Room reservations" }, subtitle: { pt: "Monitoramento genérico de disponibilidade, reservas e ocupação sem dados pessoais.", en: "Generic monitoring for availability, reservations, and occupancy without personal data." } },
+    { id: "rooms", label: { pt: "Reservas", en: "Reservations" }, icon: "hotel", permission: permissions.stockRead, title: { pt: "Reservas de camas", en: "Bed reservations" }, subtitle: { pt: "Monitoramento genérico de camas, reservas e ocupação sem dados pessoais.", en: "Generic monitoring for beds, reservations, and occupancy without personal data." } },
     { id: "products", label: { pt: "Itens", en: "Items" }, icon: "boxes", permission: permissions.productsManage, title: { pt: "Itens", en: "Items" }, subtitle: { pt: "Cadastro flexível do catálogo.", en: "Flexible catalog item registration." } },
     { id: "employees", label: { pt: "Funcionários", en: "Employees" }, icon: "users", permission: permissions.employeesManage, title: { pt: "Funcionários", en: "Employees" }, subtitle: { pt: "Pessoas disponíveis para movimentações.", en: "People available for inventory movements." } },
     { id: "reminders", label: { pt: "Lembretes", en: "Reminders" }, icon: "bell-ring", permission: permissions.remindersManage, title: { pt: "Lembretes", en: "Reminders" }, subtitle: { pt: "Regras editáveis de alerta de estoque.", en: "Editable stock alert rules." } },
@@ -770,9 +770,10 @@
     const data = loadRoomReservations();
     const rooms = flattenRooms(data);
     const visibleRooms = rooms.filter((item) =>
-      (state.roomFilter.area === "all" || item.areaId === state.roomFilter.area) &&
       (state.roomFilter.status === "all" || item.status === state.roomFilter.status)
     );
+    const selectedRoom = rooms.find((item) => `${item.areaId}|${item.id}` === state.selectedRoomKey) || rooms[0] || {};
+    state.selectedRoomKey = selectedRoom.id ? `${selectedRoom.areaId}|${selectedRoom.id}` : state.selectedRoomKey;
     const total = rooms.length;
     const available = rooms.filter((item) => item.status === "available").length;
     const reserved = rooms.filter((item) => item.status === "reserved").length;
@@ -792,7 +793,7 @@
         </div>
       </section>
       <section class="metric-grid">
-        ${metric("Quartos", total)}
+        ${metric("Camas", total)}
         ${metric("Disponíveis", available, available ? "good" : "bad")}
         ${metric("Reservados", reserved)}
         ${metric("Ocupação", `${occupancy}%`, occupancy >= 90 ? "bad" : occupancy >= 75 ? "warn" : "good")}
@@ -800,36 +801,39 @@
       <section class="reservation-overview">
         <form class="panel form-grid reservation-form" data-room-reservation-form>
           <div class="panel-heading">
-            <h2>Atualizar quarto</h2>
+            <h2>Atualizar cama</h2>
             <span class="tag">Sem dados pessoais</span>
           </div>
           <label>
-            <span>Quarto</span>
+            <span>Cama</span>
             <select name="roomKey" required>
               ${rooms.map((item) => {
                 const key = `${item.areaId}|${item.id}`;
-                return `<option value="${escapeAttribute(key)}" ${state.selectedRoomKey === key ? "selected" : ""}>${escapeHtml(item.areaName)} · ${escapeHtml(item.label)}</option>`;
+                return `<option value="${escapeAttribute(key)}" ${state.selectedRoomKey === key ? "selected" : ""}>${escapeHtml(item.label)}</option>`;
               }).join("")}
             </select>
           </label>
+          ${input("Identificação da cama", "roomLabel", selectedRoom.label || "", true)}
+          ${input("Tipo/categoria", "category", selectedRoom.category || "Leito")}
+          ${input("Capacidade", "capacity", selectedRoom.capacity || 1, true, "number")}
           <label>
             <span>Status</span>
             <select name="status" required>
-              ${roomStatusOptions()}
+              ${roomStatusOptions(selectedRoom.status)}
             </select>
           </label>
-          ${input("Código da reserva", "reservationCode", "", false)}
+          ${input("Código da reserva", "reservationCode", selectedRoom.reservationCode || "", false)}
           <label>
             <span>Entrada prevista</span>
-            <input name="checkIn" type="date">
+            <input name="checkIn" type="date" value="${escapeAttribute(selectedRoom.checkIn || "")}">
           </label>
           <label>
             <span>Saída prevista</span>
-            <input name="checkOut" type="date">
+            <input name="checkOut" type="date" value="${escapeAttribute(selectedRoom.checkOut || "")}">
           </label>
           <label>
             <span>Observação operacional</span>
-            <input name="note" placeholder="Ex.: vistoria, limpeza, manutenção">
+            <input name="note" value="${escapeAttribute(selectedRoom.note || "")}" placeholder="Ex.: vistoria, limpeza, manutenção">
           </label>
           <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar status</span></button>
         </form>
@@ -847,53 +851,44 @@
         </section>
         <form class="panel form-grid room-add-form" data-room-add-form>
           <div class="panel-heading">
-            <h2>Adicionar quarto</h2>
+            <h2>Adicionar cama</h2>
             <span class="tag good">Mapa</span>
           </div>
-          <label>
-            <span>Área</span>
-            <select name="areaId">
-              ${data.areas.map((area) => `<option value="${escapeAttribute(area.id)}">${escapeHtml(area.name)}</option>`).join("")}
-              <option value="new">Nova área</option>
-            </select>
-          </label>
-          ${input("Nome da nova área", "newAreaName", "", false)}
-          ${input("Número/código do quarto", "roomLabel", "", true)}
-          ${input("Categoria", "category", "Individual")}
+          ${input("Identificação da cama", "roomLabel", nextBedLabel(rooms))}
+          ${input("Tipo/categoria", "category", "Leito")}
           ${input("Capacidade", "capacity", 1, true, "number")}
-          <button class="button secondary" type="submit"><i data-lucide="plus"></i><span>Adicionar quarto</span></button>
+          <button class="button secondary" type="submit"><i data-lucide="plus"></i><span>Adicionar cama</span></button>
         </form>
       </section>
-      <section class="panel room-map-panel">
-        <div class="panel-heading">
+      <details class="panel room-map-panel">
+        <summary class="panel-heading">
           <div>
-            <h2>Mapa dos quartos</h2>
-            <p>Visão rápida por área, status e código interno de reserva.</p>
+            <h2>Mapa das camas</h2>
+            <p>Visão rápida por status e código interno de reserva.</p>
           </div>
           <span class="tag">${visibleRooms.length} visível(is)</span>
-        </div>
+        </summary>
         ${renderRoomMap(data, visibleRooms)}
-      </section>
+      </details>
       <section class="panel toolbar">
-        <div class="room-filter-group">
-          <button class="button ${state.roomFilter.area === "all" ? "primary" : "secondary"}" type="button" data-room-area="all">Todas as áreas</button>
-          ${data.areas.map((area) => `<button class="button ${state.roomFilter.area === area.id ? "primary" : "secondary"}" type="button" data-room-area="${escapeAttribute(area.id)}">${escapeHtml(area.name)}</button>`).join("")}
-        </div>
         <select data-room-status-filter aria-label="Filtrar status">
           <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
           ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
         </select>
       </section>
       <section class="room-grid">
-        ${visibleRooms.map(renderRoomCard).join("") || empty("Nenhum quarto encontrado para este filtro.")}
+        ${visibleRooms.map(renderRoomCard).join("") || empty("Nenhuma cama encontrada para este filtro.")}
       </section>
-      <section class="panel">
-        <div class="panel-heading">
+      <details class="panel room-history-panel">
+        <summary class="panel-heading">
           <h2>Histórico operacional</h2>
+          <span class="tag">Recolhível</span>
+        </summary>
+        <div class="history-actions">
           <button class="button ghost" type="button" data-room-reset-demo><i data-lucide="rotate-ccw"></i><span>Restaurar exemplo</span></button>
         </div>
         ${renderRoomHistory(data.history)}
-      </section>
+      </details>
     `;
     refreshIcons();
   }
@@ -904,7 +899,7 @@
     return `
       <article class="room-card ${escapeAttribute(item.status)}">
         <header>
-          <span class="tag">${escapeHtml(item.areaName)}</span>
+          <span class="tag">Cama</span>
           <span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span>
         </header>
         <h3>${escapeHtml(item.label)}</h3>
@@ -929,37 +924,28 @@
   }
 
   function renderRoomMap(data, visibleRooms) {
-    const visibleKeys = new Set(visibleRooms.map((item) => `${item.areaId}|${item.id}`));
     return `
       <div class="room-map">
-        ${data.areas.map((area) => {
-          const rooms = area.rooms
-            .map((room) => ({ ...room, areaId: area.id, areaName: area.name }))
-            .filter((room) => visibleKeys.has(`${room.areaId}|${room.id}`));
-          if (!rooms.length) return "";
-
-          return `
-            <section class="room-map-area">
-              <header>
-                <h3>${escapeHtml(area.name)}</h3>
-                <span>${rooms.length} quarto(s)</span>
-              </header>
-              <div class="room-map-tiles">
-                ${rooms.map((room) => {
-                  const status = roomStatuses().find((item) => item.id === room.status) || roomStatuses()[0];
-                  const key = `${room.areaId}|${room.id}`;
-                  return `
-                    <button class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}" type="button" data-room-pick="${escapeAttribute(key)}" title="${escapeAttribute(status.label)}">
-                      <strong>${escapeHtml(room.label)}</strong>
-                      <span>${escapeHtml(status.label)}</span>
-                      <small>${escapeHtml(room.reservationCode || room.category)}</small>
-                    </button>
-                  `;
-                }).join("")}
-              </div>
-            </section>
-          `;
-        }).join("") || empty("Nenhum quarto disponível no mapa atual.")}
+        <section class="room-map-area">
+          <header>
+            <h3>Camas</h3>
+            <span>${visibleRooms.length} cama(s)</span>
+          </header>
+          <div class="room-map-tiles">
+            ${visibleRooms.map((room) => {
+              const status = roomStatuses().find((item) => item.id === room.status) || roomStatuses()[0];
+              const key = `${room.areaId}|${room.id}`;
+              return `
+                <button class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}" type="button" data-room-pick="${escapeAttribute(key)}" title="${escapeAttribute(status.label)}">
+                  <strong>${escapeHtml(room.label)}</strong>
+                  <span>${escapeHtml(status.label)}</span>
+                  <small>${escapeHtml(room.reservationCode || room.category)}</small>
+                </button>
+              `;
+            }).join("")}
+          </div>
+        </section>
+        ${visibleRooms.length ? "" : empty("Nenhuma cama disponível no mapa atual.")}
       </div>
     `;
   }
@@ -971,14 +957,14 @@
     return `
       <div class="table-card">
         <table>
-          <thead><tr><th>Data</th><th>Quarto</th><th>Status</th><th>Código</th><th>Observação</th></tr></thead>
+          <thead><tr><th>Data</th><th>Cama</th><th>Status</th><th>Código</th><th>Observação</th></tr></thead>
           <tbody>
             ${recent.map((entry) => {
               const status = roomStatuses().find((item) => item.id === entry.status) || roomStatuses()[0];
               return `
                 <tr>
                   <td>${formatDateTime(entry.date)}</td>
-                  <td>${escapeHtml(entry.areaName)} · ${escapeHtml(entry.roomLabel)}</td>
+                  <td>${escapeHtml(entry.roomLabel)}</td>
                   <td><span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span></td>
                   <td>${escapeHtml(entry.reservationCode || "-")}</td>
                   <td>${escapeHtml(entry.note || "-")}</td>
@@ -1001,9 +987,9 @@
     ];
   }
 
-  function roomStatusOptions() {
+  function roomStatusOptions(selected = "") {
     return roomStatuses()
-      .map((status) => `<option value="${escapeAttribute(status.id)}">${escapeHtml(status.label)}</option>`)
+      .map((status) => `<option value="${escapeAttribute(status.id)}" ${status.id === selected ? "selected" : ""}>${escapeHtml(status.label)}</option>`)
       .join("");
   }
 
@@ -1021,63 +1007,28 @@
 
   function defaultRoomReservations() {
     return {
+      modelVersion: 3,
       areas: [
         {
-          id: "area-a",
-          name: "Área A",
-          rooms: [
-            roomSeed("A-101", "Individual", 1, "available"),
-            roomSeed("A-102", "Duplo", 2, "reserved", "RSV-2401", 1, 3),
-            roomSeed("A-103", "Duplo", 2, "occupied", "RSV-2398", -2, 1),
-            roomSeed("A-104", "Individual", 1, "available"),
-            roomSeed("A-105", "Flexível", 3, "available"),
-            roomSeed("A-106", "Duplo", 2, "cleaning", "", "", "", "Limpeza programada")
-          ]
-        },
-        {
-          id: "area-b",
-          name: "Área B",
-          rooms: [
-            roomSeed("B-201", "Individual", 1, "cleaning", "", "", "", "Limpeza em andamento"),
-            roomSeed("B-202", "Suíte", 3, "available"),
-            roomSeed("B-203", "Duplo", 2, "maintenance", "", "", "", "Vistoria técnica"),
-            roomSeed("B-204", "Individual", 1, "reserved", "RSV-2403", 0, 2),
-            roomSeed("B-205", "Duplo", 2, "available"),
-            roomSeed("B-206", "Flexível", 4, "occupied", "RSV-2397", -3, 1)
-          ]
-        },
-        {
-          id: "area-c",
-          name: "Área C",
-          rooms: [
-            roomSeed("C-301", "Individual", 1, "reserved", "RSV-2402", 0, 2),
-            roomSeed("C-302", "Duplo", 2, "occupied", "RSV-2399", -1, 0),
-            roomSeed("C-303", "Flexível", 4, "available"),
-            roomSeed("C-304", "Individual", 1, "available"),
-            roomSeed("C-305", "Suíte", 3, "reserved", "RSV-2404", 2, 5),
-            roomSeed("C-306", "Duplo", 2, "available")
-          ]
-        },
-        {
-          id: "anexo",
-          name: "Anexo",
-          rooms: [
-            roomSeed("D-401", "Individual", 1, "available"),
-            roomSeed("D-402", "Duplo", 2, "available"),
-            roomSeed("D-403", "Flexível", 4, "occupied", "RSV-2400", -1, 3),
-            roomSeed("D-404", "Individual", 1, "maintenance", "", "", "", "Manutenção preventiva"),
-            roomSeed("D-405", "Duplo", 2, "reserved", "RSV-2405", 1, 4),
-            roomSeed("D-406", "Suíte", 3, "available")
-          ]
+          id: "camas",
+          name: "Camas",
+          rooms: Array.from({ length: 24 }, (_, index) => {
+            const number = index + 1;
+            if ([2, 7, 13, 19].includes(number)) return roomSeed(`Cama ${number}`, "Leito", 1, "reserved", `RSV-${2400 + number}`, 1, 3);
+            if ([3, 9, 16, 22].includes(number)) return roomSeed(`Cama ${number}`, "Leito", 1, "occupied", `RSV-${2380 + number}`, -2, 1);
+            if ([5, 18].includes(number)) return roomSeed(`Cama ${number}`, "Leito", 1, "cleaning", "", "", "", "Limpeza programada");
+            if ([12, 24].includes(number)) return roomSeed(`Cama ${number}`, "Leito", 1, "maintenance", "", "", "", "Manutenção preventiva");
+            return roomSeed(`Cama ${number}`, "Leito", 1, "available");
+          })
         }
       ],
       history: [
         {
           date: new Date().toISOString(),
-          areaName: "Anexo",
-          roomLabel: "C-302",
+          areaName: "Camas",
+          roomLabel: "Cama 22",
           status: "occupied",
-          reservationCode: "RSV-2399",
+          reservationCode: "RSV-2402",
           note: "Saída prevista para hoje"
         }
       ]
@@ -1086,40 +1037,26 @@
 
   function normalizeRoomReservations(data) {
     const fallback = defaultRoomReservations();
-    const normalized = data && Array.isArray(data.areas) ? data : fallback;
-    normalized.history = Array.isArray(normalized.history) ? normalized.history : [];
+    const isCurrentModel = data?.modelVersion === 3 &&
+      Array.isArray(data.areas) &&
+      data.areas.length === 1 &&
+      data.areas[0]?.id === "camas";
 
-    const legacyAnexo = normalized.areas.find((area) => area.id === "anexo");
-    const hasAreaC = normalized.areas.some((area) => area.id === "area-c");
-    if (!hasAreaC && legacyAnexo?.rooms?.some((room) => String(room.label || "").startsWith("C-"))) {
-      legacyAnexo.id = "area-c";
-      legacyAnexo.name = "Área C";
+    if (!isCurrentModel) {
+      return fallback;
     }
 
-    fallback.areas.forEach((defaultArea) => {
-      let area = normalized.areas.find((item) => item.id === defaultArea.id);
-      if (!area) {
-        normalized.areas.push(defaultArea);
-        return;
-      }
-
-      area.name = area.name || defaultArea.name;
-      area.rooms = Array.isArray(area.rooms) ? area.rooms : [];
-      defaultArea.rooms.forEach((defaultRoom) => {
-        if (!area.rooms.some((room) => room.id === defaultRoom.id || room.label === defaultRoom.label)) {
-          area.rooms.push(defaultRoom);
-        }
-      });
-    });
-
-    return normalized;
+    data.history = Array.isArray(data.history) ? data.history : [];
+    data.areas[0].name = "Camas";
+    data.areas[0].rooms = Array.isArray(data.areas[0].rooms) ? data.areas[0].rooms : fallback.areas[0].rooms;
+    return data;
   }
 
   function roomSeed(label, category, capacity, status, reservationCode = "", checkInOffset = "", checkOutOffset = "", note = "") {
     const checkIn = checkInOffset === "" ? "" : toDateInputValue(addDays(new Date(), Number(checkInOffset)));
     const checkOut = checkOutOffset === "" ? "" : toDateInputValue(addDays(new Date(), Number(checkOutOffset)));
     return {
-      id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      id: slugify(label),
       label,
       category,
       capacity,
@@ -1142,13 +1079,23 @@
     );
   }
 
-  function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "") {
+  function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "", roomLabel = "", category = "", capacity = 1) {
     const data = loadRoomReservations();
     const [areaId, roomId] = String(roomKey || "").split("|");
     const area = data.areas.find((item) => item.id === areaId);
     const room = area?.rooms.find((item) => item.id === roomId);
     if (!area || !room) {
-      throw new Error("Quarto não encontrado.");
+      throw new Error("Cama não encontrada.");
+    }
+
+    const nextLabel = sanitizeBedLabel(roomLabel || room.label);
+    if (!nextLabel) {
+      throw new Error("Informe a identificação da cama.");
+    }
+
+    const nextId = slugify(nextLabel);
+    if (area.rooms.some((item) => item !== room && (item.id === nextId || item.label.toLowerCase() === nextLabel.toLowerCase()))) {
+      throw new Error("Já existe uma cama com esta identificação.");
     }
 
     const safeCode = sanitizeReservationCode(reservationCode || room.reservationCode || "");
@@ -1156,6 +1103,10 @@
       ? safeCode || `RSV-${String(Date.now()).slice(-6)}`
       : "";
 
+    room.id = nextId;
+    room.label = nextLabel;
+    room.category = sanitizeOperationalNote(category) || "Leito";
+    room.capacity = Math.max(1, Number(capacity || 1));
     room.status = status;
     room.reservationCode = nextCode;
     room.checkIn = ["reserved", "occupied"].includes(status) ? checkIn || room.checkIn || todayInputValue() : "";
@@ -1172,37 +1123,28 @@
       note: room.note
     });
     data.history = data.history.slice(0, 60);
+    state.selectedRoomKey = `${area.id}|${room.id}`;
     saveRoomReservations();
   }
 
-  function addRoomReservation(areaId, newAreaName, roomLabel, category, capacity) {
+  function addRoomReservation(roomLabel, category, capacity) {
     const data = loadRoomReservations();
-    const label = sanitizeRoomLabel(roomLabel);
-    if (!label) {
-      throw new Error("Informe o número ou código do quarto.");
-    }
-
-    let area = data.areas.find((item) => item.id === areaId);
-    if (areaId === "new") {
-      const name = sanitizeOperationalNote(newAreaName) || "Nova área";
-      const id = slugify(name);
-      if (data.areas.some((item) => item.id === id)) {
-        throw new Error("Já existe uma área com este nome.");
-      }
-      area = { id, name, rooms: [] };
+    const area = data.areas[0] || { id: "camas", name: "Camas", rooms: [] };
+    if (!data.areas.length) {
       data.areas.push(area);
     }
 
-    if (!area) {
-      throw new Error("Área não encontrada.");
+    const label = sanitizeBedLabel(roomLabel || nextBedLabel(flattenRooms(data)));
+    if (!label) {
+      throw new Error("Informe a identificação da cama.");
     }
 
     const roomId = slugify(label);
     if (flattenRooms(data).some((room) => room.id === roomId || room.label.toLowerCase() === label.toLowerCase())) {
-      throw new Error("Já existe um quarto com este número/código.");
+      throw new Error("Já existe uma cama com esta identificação.");
     }
 
-    const room = roomSeed(label, sanitizeOperationalNote(category) || "Individual", Math.max(1, Number(capacity || 1)), "available");
+    const room = roomSeed(label, sanitizeOperationalNote(category) || "Leito", Math.max(1, Number(capacity || 1)), "available");
     area.rooms.push(room);
     data.history.unshift({
       date: new Date().toISOString(),
@@ -1210,11 +1152,10 @@
       roomLabel: room.label,
       status: "available",
       reservationCode: "",
-      note: "Quarto adicionado"
+      note: "Cama adicionada"
     });
     data.history = data.history.slice(0, 60);
     state.selectedRoomKey = `${area.id}|${room.id}`;
-    state.roomFilter.area = area.id;
     state.roomFilter.status = "all";
     saveRoomReservations();
   }
@@ -1225,7 +1166,7 @@
         tone: "bad",
         icon: "triangle-alert",
         title: "Capacidade crítica",
-        message: "Poucos quartos disponíveis. Revise reservas próximas, limpezas e manutenção."
+        message: "Poucas camas disponíveis. Revise reservas próximas, limpezas e manutenção."
       };
     }
 
@@ -1234,7 +1175,7 @@
         tone: "warn",
         icon: "circle-alert",
         title: "Atenção operacional",
-        message: "Há quartos fora de uso ou ocupação elevada. Acompanhe o fluxo previsto."
+        message: "Há camas fora de uso ou ocupação elevada. Acompanhe o fluxo previsto."
       };
     }
 
@@ -1263,12 +1204,21 @@
       .slice(0, 120);
   }
 
-  function sanitizeRoomLabel(value) {
+  function sanitizeBedLabel(value) {
     return String(value || "")
       .trim()
-      .replace(/[^a-z0-9-]/gi, "")
-      .slice(0, 16)
-      .toUpperCase();
+      .replace(/[^\p{L}\p{N}\s-]/gu, "")
+      .replace(/\s+/g, " ")
+      .slice(0, 24);
+  }
+
+  function nextBedLabel(rooms) {
+    const numbers = rooms
+      .map((room) => /^Cama\s+(\d+)$/i.exec(room.label || ""))
+      .filter(Boolean)
+      .map((match) => Number(match[1]));
+    const next = numbers.length ? Math.max(...numbers) + 1 : 1;
+    return `Cama ${next}`;
   }
 
   function slugify(value) {
@@ -1278,7 +1228,7 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      || `area-${Date.now()}`;
+      || `cama-${Date.now()}`;
   }
 
   function formatRoomPeriod(room) {
@@ -1776,8 +1726,8 @@
         </article>
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
-          <h2>Generic room reservations</h2>
-          <p>The Reservations page starts with 24 generic rooms, includes a visual room map, lets operators add more rooms, and uses only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
+          <h2>Generic bed reservations</h2>
+          <p>The Reservations page starts with 24 editable beds, includes a collapsible visual bed map, lets operators add more beds, and uses only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1815,8 +1765,8 @@
         </article>
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
-          <h2>Reservas genéricas de quartos</h2>
-          <p>A tela Reservas inicia com 24 quartos genéricos, inclui mapa visual dos quartos, permite adicionar novos quartos e usa apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
+          <h2>Reservas genéricas de camas</h2>
+          <p>A tela Reservas inicia com 24 camas editáveis, inclui mapa visual recolhível das camas, permite adicionar novas camas e usa apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1875,17 +1825,26 @@
       <section class="release-list">
         <article class="panel release-card">
           <div>
-            <span class="tag warn">v1.2.7-beta</span>
-            <h2>${state.language === "en" ? "Expanded room map and room creation" : "Mapa expandido e criação de quartos"}</h2>
+            <span class="tag warn">v1.2.8-beta</span>
+            <h2>${state.language === "en" ? "Bed-only reservation view" : "Reservas apenas por camas"}</h2>
             <p>${state.language === "en"
-              ? "Expands the reservation monitor to 24 initial rooms, adds a visual map grouped by area, and includes controls to add more rooms without personal guest data."
-              : "Expande o monitor de reservas para 24 quartos iniciais, adiciona um mapa visual agrupado por área e inclui controles para adicionar novos quartos sem dados pessoais de hóspedes."}</p>
+              ? "Converts the Reservations page to 24 editable beds named Bed 1 to Bed 24, keeps adding new beds available, and starts the map and history collapsed."
+              : "Converte a tela Reservas para 24 camas editáveis identificadas de Cama 1 a Cama 24, mantém a inclusão de novas camas e inicia mapa e histórico recolhidos."}</p>
+          </div>
+        </article>
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.7-beta</span>
+            <h2>${state.language === "en" ? "Expanded bed map and bed creation" : "Mapa expandido e criação de camas"}</h2>
+            <p>${state.language === "en"
+              ? "Expands the reservation monitor to 24 initial beds, adds a visual map, and includes controls to add more beds without personal guest data."
+              : "Expande o monitor de reservas para 24 camas iniciais, adiciona um mapa visual e inclui controles para adicionar novas camas sem dados pessoais de hóspedes."}</p>
           </div>
         </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.6-beta</span>
-            <h2>${state.language === "en" ? "Generic room reservation monitoring" : "Monitoramento genérico de reservas de quartos"}</h2>
+            <h2>${state.language === "en" ? "Generic bed reservation monitoring" : "Monitoramento genérico de reservas de camas"}</h2>
             <p>${state.language === "en"
               ? "Adds a Reservations page inspired by operational occupancy dashboards, adapted to the app interface and designed without guest personal data."
               : "Adiciona uma tela Reservas inspirada em painéis operacionais de ocupação, adaptada à interface do app e projetada sem dados pessoais de hóspedes."}</p>
@@ -1982,25 +1941,20 @@
         selectProduct(target.dataset.stockIn);
       } else if (target.dataset.criticalOnly !== undefined) {
         await renderStock("", true);
-      } else if (target.dataset.roomArea) {
-        state.roomFilter.area = target.dataset.roomArea;
-        await renderRoomReservations();
       } else if (target.dataset.roomPick) {
         state.selectedRoomKey = target.dataset.roomPick;
-        const [areaId] = target.dataset.roomPick.split("|");
-        state.roomFilter.area = areaId;
         await renderRoomReservations();
       } else if (target.dataset.roomQuick) {
         const [areaId, roomId, status] = target.dataset.roomQuick.split("|");
         state.selectedRoomKey = `${areaId}|${roomId}`;
         updateRoomReservation(`${areaId}|${roomId}`, status);
-        showToast("Status do quarto atualizado.", "success");
+        showToast("Status da cama atualizado.", "success");
         await renderRoomReservations();
       } else if (target.dataset.roomResetDemo !== undefined) {
-        if (confirm("Restaurar os dados de exemplo de reservas?")) {
+        if (confirm("Restaurar as 24 camas de exemplo?")) {
           state.roomReservations = defaultRoomReservations();
           saveRoomReservations();
-          showToast("Exemplo de reservas restaurado.", "success");
+          showToast("Camas de exemplo restauradas.", "success");
           await renderRoomReservations();
         }
       } else if (target.dataset.editProduct) {
@@ -2181,6 +2135,13 @@
       return;
     }
 
+    const roomSelect = event.target.closest("[data-room-reservation-form] select[name='roomKey']");
+    if (roomSelect) {
+      state.selectedRoomKey = roomSelect.value;
+      await renderRoomReservations();
+      return;
+    }
+
     const input = event.target.closest("[data-import-file]");
     if (!input || !input.files.length) return;
 
@@ -2222,7 +2183,10 @@
       String(data.get("reservationCode") || ""),
       String(data.get("checkIn") || ""),
       String(data.get("checkOut") || ""),
-      String(data.get("note") || "")
+      String(data.get("note") || ""),
+      String(data.get("roomLabel") || ""),
+      String(data.get("category") || ""),
+      Number(data.get("capacity") || 1)
     );
     showToast("Reserva atualizada.", "success");
     form.reset();
@@ -2232,13 +2196,11 @@
   async function saveRoomAddForm(form) {
     const data = new FormData(form);
     addRoomReservation(
-      String(data.get("areaId") || ""),
-      String(data.get("newAreaName") || ""),
       String(data.get("roomLabel") || ""),
       String(data.get("category") || ""),
       Number(data.get("capacity") || 1)
     );
-    showToast("Quarto adicionado ao mapa.", "success");
+    showToast("Cama adicionada ao mapa.", "success");
     form.reset();
     await renderRoomReservations();
   }

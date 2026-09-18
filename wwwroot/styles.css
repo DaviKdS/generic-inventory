@@ -1035,14 +1035,50 @@ textarea {
   gap: 8px;
 }
 
-.room-map-panel {
+.room-map-panel,
+.room-history-panel {
   display: grid;
   gap: 14px;
+}
+
+.room-map-panel > summary,
+.room-history-panel > summary {
+  cursor: pointer;
+  list-style: none;
+  margin: 0;
+}
+
+.room-map-panel > summary::-webkit-details-marker,
+.room-history-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.room-map-panel > summary::after,
+.room-history-panel > summary::after {
+  background: rgba(var(--surface-rgb), 0.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  content: "Abrir";
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+.room-map-panel[open] > summary::after,
+.room-history-panel[open] > summary::after {
+  content: "Recolher";
 }
 
 .room-map-panel .panel-heading p {
   color: var(--muted);
   margin: 4px 0 0;
+}
+
+.history-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .room-map {

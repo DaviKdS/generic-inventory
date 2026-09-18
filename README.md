@@ -68,7 +68,7 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Developer pode definir ou substituir senhas diretamente, inclusive quando o usuário ainda dependeria de link de senha.
 - Alterações de perfil e visibilidade são sincronizadas automaticamente em sessões desktop e mobile.
 - Importação Developer com prévia de colunas, seleção de campos, criação de itens novos e atualização de itens existentes.
-- Página de reservas de quartos genérica com 24 quartos iniciais, mapa visual por área, inclusão de novos quartos, disponibilidade, ocupação, limpeza, manutenção, histórico operacional e códigos internos de reserva.
+- Página de reservas de camas genérica com 24 camas iniciais editáveis, mapa visual recolhível, inclusão de novas camas, disponibilidade, ocupação, limpeza, manutenção, histórico operacional recolhível e códigos internos de reserva.
 - O monitoramento de reservas evita dados pessoais: não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.
 - Lembretes de estoque crítico (`EstoqueAtual <= EstoqueMinimo`), editáveis pelo admin.
 - Envio de lembrete por Power Automate HTTP quando configurado.

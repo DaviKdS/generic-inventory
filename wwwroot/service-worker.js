@@ -1,4 +1,4 @@
-const CACHE_NAME = "generic-inventory-v14";
+const CACHE_NAME = "generic-inventory-v15";
 const APP_SHELL = [
   "/",
   "/index.html",
