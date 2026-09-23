@@ -1,0 +1,100 @@
+name: Deploy FREE to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'GenericInventory.csproj'
+  PUBLISH_PATH: './publish'
+
+jobs:
+  build-test-deploy:
+    name: Build, validate FREE tier and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required repository variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_WEBAPP_NAME }}" ]; then
+            echo "::error::Repository variable AZURE_WEBAPP_NAME is required."
+            exit 1
+          fi
+          if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then
+            echo "::error::Repository variable AZURE_RESOURCE_GROUP is required."
+            exit 1
+          fi
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "${{ env.PROJECT_PATH }}"
+
+      - name: Build
+        run: dotnet build "${{ env.PROJECT_PATH }}" --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish "${{ env.PROJECT_PATH }}" --configuration Release --no-build --output "${{ env.PUBLISH_PATH }}"
+
+      - name: Login to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Zero-cost guard - require existing F1 App Service Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_NAME="${{ vars.AZURE_WEBAPP_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+
+          WEBAPP_JSON="$(az webapp show --name "$APP_NAME" --resource-group "$RG" -o json)" || {
+            echo "::error::The Web App does not exist. This workflow NEVER creates Azure resources."
+            exit 1
+          }
+
+          PLAN_ID="$(echo "$WEBAPP_JSON" | jq -r '.serverFarmId')"
+          if [ -z "$PLAN_ID" ] || [ "$PLAN_ID" = "null" ]; then
+            echo "::error::Unable to resolve the App Service Plan."
+            exit 1
+          fi
+
+          SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
+          SKU_TIER="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.tier' -o tsv)"
+
+          echo "Detected App Service Plan SKU: $SKU_NAME ($SKU_TIER)"
+
+          if [ "$SKU_NAME" != "F1" ]; then
+            echo "::error::Deployment blocked: App Service Plan must be F1. Detected: $SKU_NAME ($SKU_TIER)."
+            exit 1
+          fi
+
+          echo "Zero-cost guard passed: existing App Service Plan is F1."
+          echo "No Azure resource creation or SKU upgrade commands are present in this workflow."
+
+      - name: Deploy to existing Azure App Service F1
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: ${{ env.PUBLISH_PATH }}
