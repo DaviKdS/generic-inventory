@@ -17,7 +17,7 @@ env:
   REQUIRED_SKU: 'F1'
   REQUIRED_TIER: 'Free'
   AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
-  AZURE_LOCATION: 'brazilsouth'
+  AZURE_LOCATION: 'centralus'
   AZURE_APP_SERVICE_PLAN_NAME: 'asp-generic-inventory-free'
   AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
 
