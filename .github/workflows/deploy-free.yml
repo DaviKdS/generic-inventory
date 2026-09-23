@@ -14,6 +14,8 @@ env:
   DOTNET_VERSION: '8.0.x'
   PROJECT_PATH: 'GenericInventory.csproj'
   PUBLISH_PATH: './publish'
+  REQUIRED_SKU: 'F1'
+  REQUIRED_TIER: 'Free'
 
 jobs:
   build-test-deploy:
@@ -28,12 +30,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           if [ -z "${{ vars.AZURE_WEBAPP_NAME }}" ]; then
             echo "::error::Repository variable AZURE_WEBAPP_NAME is required."
             exit 1
           fi
+
           if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then
             echo "::error::Repository variable AZURE_RESOURCE_GROUP is required."
+            exit 1
+          fi
+
+          if [ -z "${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}" ]; then
+            echo "::error::Repository variable AZURE_APP_SERVICE_PLAN_NAME is required."
             exit 1
           fi
 
@@ -61,16 +70,17 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Zero-cost guard - require existing F1 App Service Plan
+      - name: Zero-cost guard - require exact existing F1 plan
         shell: bash
         run: |
           set -euo pipefail
 
           APP_NAME="${{ vars.AZURE_WEBAPP_NAME }}"
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          EXPECTED_PLAN="${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}"
 
           WEBAPP_JSON="$(az webapp show --name "$APP_NAME" --resource-group "$RG" -o json)" || {
-            echo "::error::The Web App does not exist. This workflow NEVER creates Azure resources."
+            echo "::error::The Web App does not exist. Run the manual provisioning workflow first."
             exit 1
           }
 
@@ -80,18 +90,24 @@ jobs:
             exit 1
           fi
 
+          PLAN_NAME="$(basename "$PLAN_ID")"
           SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
           SKU_TIER="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.tier' -o tsv)"
 
-          echo "Detected App Service Plan SKU: $SKU_NAME ($SKU_TIER)"
+          echo "Detected App Service Plan: $PLAN_NAME"
+          echo "Detected SKU: $SKU_NAME ($SKU_TIER)"
 
-          if [ "$SKU_NAME" != "F1" ]; then
-            echo "::error::Deployment blocked: App Service Plan must be F1. Detected: $SKU_NAME ($SKU_TIER)."
+          if [ "$PLAN_NAME" != "$EXPECTED_PLAN" ]; then
+            echo "::error::Deployment blocked: expected plan '$EXPECTED_PLAN', detected '$PLAN_NAME'."
             exit 1
           fi
 
-          echo "Zero-cost guard passed: existing App Service Plan is F1."
-          echo "No Azure resource creation or SKU upgrade commands are present in this workflow."
+          if [ "$SKU_NAME" != "${{ env.REQUIRED_SKU }}" ] || [ "$SKU_TIER" != "${{ env.REQUIRED_TIER }}" ]; then
+            echo "::error::Deployment blocked: App Service Plan must be exactly F1/Free. Detected: $SKU_NAME/$SKU_TIER."
+            exit 1
+          fi
+
+          echo "Zero-cost guard passed: exact expected plan and F1/Free SKU confirmed."
 
       - name: Deploy to existing Azure App Service F1
         uses: azure/webapps-deploy@v3
