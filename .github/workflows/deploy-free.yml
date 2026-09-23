@@ -16,6 +16,10 @@ env:
   PUBLISH_PATH: './publish'
   REQUIRED_SKU: 'F1'
   REQUIRED_TIER: 'Free'
+  AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
+  AZURE_LOCATION: 'brazilsouth'
+  AZURE_APP_SERVICE_PLAN_NAME: 'asp-generic-inventory-free'
+  AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
 
 jobs:
   build-test-deploy:
@@ -25,26 +29,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Validate required repository variables
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ -z "${{ vars.AZURE_WEBAPP_NAME }}" ]; then
-            echo "::error::Repository variable AZURE_WEBAPP_NAME is required."
-            exit 1
-          fi
-
-          if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then
-            echo "::error::Repository variable AZURE_RESOURCE_GROUP is required."
-            exit 1
-          fi
-
-          if [ -z "${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}" ]; then
-            echo "::error::Repository variable AZURE_APP_SERVICE_PLAN_NAME is required."
-            exit 1
-          fi
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
@@ -75,9 +59,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          APP_NAME="${{ vars.AZURE_WEBAPP_NAME }}"
-          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          EXPECTED_PLAN="${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}"
+          APP_NAME="${{ env.AZURE_WEBAPP_NAME }}"
+          RG="${{ env.AZURE_RESOURCE_GROUP }}"
+          EXPECTED_PLAN="${{ env.AZURE_APP_SERVICE_PLAN_NAME }}"
 
           WEBAPP_JSON="$(az webapp show --name "$APP_NAME" --resource-group "$RG" -o json)" || {
             echo "::error::The Web App does not exist. Run the manual provisioning workflow first."
@@ -112,5 +96,5 @@ jobs:
       - name: Deploy to existing Azure App Service F1
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.PUBLISH_PATH }}
