@@ -64,7 +64,7 @@ jobs:
             NAME="$(awk '{print $1}' <<< "$resource")"
             TYPE="$(awk '{print $2}' <<< "$resource")"
 
-            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverfarms" ]; then
+            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverFarms" ]; then
               continue
             elif [ "$NAME" = "$EXPECTED_APP" ] && [ "$TYPE" = "Microsoft.Web/sites" ]; then
               continue
@@ -160,7 +160,7 @@ jobs:
             NAME="$(awk '{print $1}' <<< "$resource")"
             TYPE="$(awk '{print $2}' <<< "$resource")"
 
-            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverfarms" ]; then
+            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverFarms" ]; then
               FOUND_PLAN=1
             elif [ "$NAME" = "$APP" ] && [ "$TYPE" = "Microsoft.Web/sites" ]; then
               FOUND_APP=1
