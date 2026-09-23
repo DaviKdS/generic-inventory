@@ -2,6 +2,14 @@
 
 Aplicação ASP.NET 8 para controle genérico de estoque com SPA estática em `wwwroot`, APIs JSON e SQLite local.
 
+## Site publicado
+
+Endereço fixo da aplicação no Azure App Service:
+
+- **Produção / acesso público:** https://generic-inventory-davikds-free.azurewebsites.net
+
+O ambiente está publicado no Azure App Service em plano **F1 / Free**, na região **Central US**, com deploy automático pela branch `main` via GitHub Actions.
+
 ## Rodar Localmente
 
 ```bash
@@ -23,7 +31,8 @@ python public_server.py
 
 Esse comando gera uma URL `https://...trycloudflare.com`, grava o endereço atual em `App_Data/current-public-url.txt` e inicia a aplicação com `App__PublicBaseUrl` ajustado para essa URL. Ao reiniciar pelo mesmo script, um novo domínio temporário é gerado e aplicado automaticamente.
 
-- Site: http://localhost:5045
+- Site local: http://localhost:5045
+- Site Azure: https://generic-inventory-davikds-free.azurewebsites.net
 - Swagger: http://localhost:5045/api
 - Banco local padrão: `App_Data/generic-inventory-dev.db`
 
