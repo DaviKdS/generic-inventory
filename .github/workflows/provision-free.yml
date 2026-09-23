@@ -10,6 +10,10 @@ permissions:
 env:
   REQUIRED_SKU: 'F1'
   BICEP_FILE: 'infra/main.bicep'
+  AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
+  AZURE_LOCATION: 'brazilsouth'
+  AZURE_APP_SERVICE_PLAN_NAME: 'asp-generic-inventory-free'
+  AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
 
 jobs:
   provision:
@@ -19,32 +23,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Validate required repository variables
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          required_vars=(
-            AZURE_RESOURCE_GROUP
-            AZURE_LOCATION
-            AZURE_APP_SERVICE_PLAN_NAME
-            AZURE_WEBAPP_NAME
-          )
-
-          for var_name in "${required_vars[@]}"; do
-            case "$var_name" in
-              AZURE_RESOURCE_GROUP) value='${{ vars.AZURE_RESOURCE_GROUP }}' ;;
-              AZURE_LOCATION) value='${{ vars.AZURE_LOCATION }}' ;;
-              AZURE_APP_SERVICE_PLAN_NAME) value='${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}' ;;
-              AZURE_WEBAPP_NAME) value='${{ vars.AZURE_WEBAPP_NAME }}' ;;
-            esac
-
-            if [ -z "$value" ]; then
-              echo "::error::Repository variable $var_name is required."
-              exit 1
-            fi
-          done
 
       - name: Login to Azure with OIDC
         uses: azure/login@v2
@@ -57,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          RG='${{ vars.AZURE_RESOURCE_GROUP }}'
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
 
           if ! az group show --name "$RG" >/dev/null 2>&1; then
             echo "::error::Resource group '$RG' does not exist. Create it manually first. This workflow does not create subscription-level resources."
@@ -85,12 +63,12 @@ jobs:
           set -euo pipefail
 
           az deployment group what-if \
-            --resource-group '${{ vars.AZURE_RESOURCE_GROUP }}' \
+            --resource-group '${{ env.AZURE_RESOURCE_GROUP }}' \
             --template-file '${{ env.BICEP_FILE }}' \
             --parameters \
-              location='${{ vars.AZURE_LOCATION }}' \
-              appServicePlanName='${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}' \
-              webAppName='${{ vars.AZURE_WEBAPP_NAME }}'
+              location='${{ env.AZURE_LOCATION }}' \
+              appServicePlanName='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}' \
+              webAppName='${{ env.AZURE_WEBAPP_NAME }}'
 
       - name: Provision F1 App Service Plan and Web App
         shell: bash
@@ -99,20 +77,20 @@ jobs:
 
           az deployment group create \
             --name "generic-inventory-free-${GITHUB_RUN_ID}" \
-            --resource-group '${{ vars.AZURE_RESOURCE_GROUP }}' \
+            --resource-group '${{ env.AZURE_RESOURCE_GROUP }}' \
             --template-file '${{ env.BICEP_FILE }}' \
             --parameters \
-              location='${{ vars.AZURE_LOCATION }}' \
-              appServicePlanName='${{ vars.AZURE_APP_SERVICE_PLAN_NAME }}' \
-              webAppName='${{ vars.AZURE_WEBAPP_NAME }}'
+              location='${{ env.AZURE_LOCATION }}' \
+              appServicePlanName='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}' \
+              webAppName='${{ env.AZURE_WEBAPP_NAME }}'
 
       - name: Verify provisioned plan is exactly F1
         shell: bash
         run: |
           set -euo pipefail
 
-          RG='${{ vars.AZURE_RESOURCE_GROUP }}'
-          APP='${{ vars.AZURE_WEBAPP_NAME }}'
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+          APP='${{ env.AZURE_WEBAPP_NAME }}'
 
           PLAN_ID="$(az webapp show --name "$APP" --resource-group "$RG" --query serverFarmId -o tsv)"
           SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
