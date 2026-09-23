@@ -9,6 +9,7 @@ permissions:
 
 env:
   REQUIRED_SKU: 'F1'
+  REQUIRED_TIER: 'Free'
   BICEP_FILE: 'infra/main.bicep'
   AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
   AZURE_LOCATION: 'brazilsouth'
@@ -41,6 +42,39 @@ jobs:
             echo "::error::Resource group '$RG' does not exist. Create it manually first. This workflow does not create subscription-level resources."
             exit 1
           fi
+
+      - name: Zero-cost guard - reject unexpected existing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+          EXPECTED_PLAN='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}'
+          EXPECTED_APP='${{ env.AZURE_WEBAPP_NAME }}'
+
+          mapfile -t RESOURCES < <(az resource list --resource-group "$RG" --query "[].{name:name,type:type}" -o tsv)
+
+          if [ "${#RESOURCES[@]}" -gt 2 ]; then
+            echo "::error::Provisioning blocked: more than 2 top-level resources already exist in '$RG'."
+            printf 'Detected resource: %s\n' "${RESOURCES[@]}"
+            exit 1
+          fi
+
+          for resource in "${RESOURCES[@]}"; do
+            NAME="$(awk '{print $1}' <<< "$resource")"
+            TYPE="$(awk '{print $2}' <<< "$resource")"
+
+            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverfarms" ]; then
+              continue
+            elif [ "$NAME" = "$EXPECTED_APP" ] && [ "$TYPE" = "Microsoft.Web/sites" ]; then
+              continue
+            else
+              echo "::error::Provisioning blocked: unexpected Azure resource '$NAME' of type '$TYPE' exists in '$RG'."
+              exit 1
+            fi
+          done
+
+          echo "Existing-resource allow-list passed."
 
       - name: Validate Bicep contains F1 hard lock
         shell: bash
@@ -84,23 +118,61 @@ jobs:
               appServicePlanName='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}' \
               webAppName='${{ env.AZURE_WEBAPP_NAME }}'
 
-      - name: Verify provisioned plan is exactly F1
+      - name: Verify provisioned plan is exactly F1 and resource group is clean
         shell: bash
         run: |
           set -euo pipefail
 
           RG='${{ env.AZURE_RESOURCE_GROUP }}'
           APP='${{ env.AZURE_WEBAPP_NAME }}'
+          EXPECTED_PLAN='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}'
 
           PLAN_ID="$(az webapp show --name "$APP" --resource-group "$RG" --query serverFarmId -o tsv)"
+          PLAN_NAME="$(basename "$PLAN_ID")"
           SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
           SKU_TIER="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.tier' -o tsv)"
 
+          echo "Provisioned plan: $PLAN_NAME"
           echo "Provisioned SKU: $SKU_NAME ($SKU_TIER)"
 
-          if [ "$SKU_NAME" != "${{ env.REQUIRED_SKU }}" ]; then
-            echo "::error::Cost guard failed. Expected F1, got $SKU_NAME ($SKU_TIER)."
+          if [ "$PLAN_NAME" != "$EXPECTED_PLAN" ]; then
+            echo "::error::Cost guard failed. Expected plan '$EXPECTED_PLAN', got '$PLAN_NAME'."
             exit 1
           fi
 
-          echo "FREE infrastructure verified successfully."
+          if [ "$SKU_NAME" != "${{ env.REQUIRED_SKU }}" ] || [ "$SKU_TIER" != "${{ env.REQUIRED_TIER }}" ]; then
+            echo "::error::Cost guard failed. Expected F1/Free, got $SKU_NAME/$SKU_TIER."
+            exit 1
+          fi
+
+          mapfile -t RESOURCES < <(az resource list --resource-group "$RG" --query "[].{name:name,type:type}" -o tsv)
+
+          if [ "${#RESOURCES[@]}" -ne 2 ]; then
+            echo "::error::Cost guard failed: expected exactly 2 top-level resources after provisioning, found ${#RESOURCES[@]}."
+            printf 'Detected resource: %s\n' "${RESOURCES[@]:-<none>}"
+            exit 1
+          fi
+
+          FOUND_PLAN=0
+          FOUND_APP=0
+
+          for resource in "${RESOURCES[@]}"; do
+            NAME="$(awk '{print $1}' <<< "$resource")"
+            TYPE="$(awk '{print $2}' <<< "$resource")"
+
+            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverfarms" ]; then
+              FOUND_PLAN=1
+            elif [ "$NAME" = "$APP" ] && [ "$TYPE" = "Microsoft.Web/sites" ]; then
+              FOUND_APP=1
+            else
+              echo "::error::Cost guard failed: unexpected resource '$NAME' of type '$TYPE'."
+              exit 1
+            fi
+          done
+
+          if [ "$FOUND_PLAN" -ne 1 ] || [ "$FOUND_APP" -ne 1 ]; then
+            echo "::error::Cost guard failed: expected FREE resources are missing."
+            exit 1
+          fi
+
+          echo "FREE infrastructure verified: exact F1/Free plan and no unexpected top-level resources."
