@@ -54,14 +54,55 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Zero-cost guard - reject unexpected resources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+          EXPECTED_PLAN='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}'
+          EXPECTED_APP='${{ env.AZURE_WEBAPP_NAME }}'
+
+          mapfile -t RESOURCES < <(az resource list --resource-group "$RG" --query "[].{name:name,type:type}" -o tsv)
+
+          if [ "${#RESOURCES[@]}" -ne 2 ]; then
+            echo "::error::Deployment blocked: expected exactly 2 top-level resources in '$RG', found ${#RESOURCES[@]}."
+            printf 'Detected resource: %s\n' "${RESOURCES[@]:-<none>}"
+            exit 1
+          fi
+
+          FOUND_PLAN=0
+          FOUND_APP=0
+
+          for resource in "${RESOURCES[@]}"; do
+            NAME="$(awk '{print $1}' <<< "$resource")"
+            TYPE="$(awk '{print $2}' <<< "$resource")"
+
+            if [ "$NAME" = "$EXPECTED_PLAN" ] && [ "$TYPE" = "Microsoft.Web/serverfarms" ]; then
+              FOUND_PLAN=1
+            elif [ "$NAME" = "$EXPECTED_APP" ] && [ "$TYPE" = "Microsoft.Web/sites" ]; then
+              FOUND_APP=1
+            else
+              echo "::error::Deployment blocked: unexpected Azure resource '$NAME' of type '$TYPE' exists in '$RG'."
+              exit 1
+            fi
+          done
+
+          if [ "$FOUND_PLAN" -ne 1 ] || [ "$FOUND_APP" -ne 1 ]; then
+            echo "::error::Deployment blocked: expected FREE App Service resources are missing."
+            exit 1
+          fi
+
+          echo "Resource allow-list passed: only the expected App Service Plan and Web App exist."
+
       - name: Zero-cost guard - require exact existing F1 plan
         shell: bash
         run: |
           set -euo pipefail
 
-          APP_NAME="${{ env.AZURE_WEBAPP_NAME }}"
-          RG="${{ env.AZURE_RESOURCE_GROUP }}"
-          EXPECTED_PLAN="${{ env.AZURE_APP_SERVICE_PLAN_NAME }}"
+          APP_NAME='${{ env.AZURE_WEBAPP_NAME }}'
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+          EXPECTED_PLAN='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}'
 
           WEBAPP_JSON="$(az webapp show --name "$APP_NAME" --resource-group "$RG" -o json)" || {
             echo "::error::The Web App does not exist. Run the manual provisioning workflow first."
