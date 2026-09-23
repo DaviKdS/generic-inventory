@@ -1,0 +1,106 @@
+name: Provision Azure FREE infrastructure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REQUIRED_SKU: 'F1'
+  BICEP_FILE: 'infra/main.bicep'
+  AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
+  AZURE_LOCATION: 'brazilsouth'
+  AZURE_APP_SERVICE_PLAN_NAME: 'asp-generic-inventory-free'
+  AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
+
+jobs:
+  provision:
+    name: Provision F1-only Azure resources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm target resource group already exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+
+          if ! az group show --name "$RG" >/dev/null 2>&1; then
+            echo "::error::Resource group '$RG' does not exist. Create it manually first. This workflow does not create subscription-level resources."
+            exit 1
+          fi
+
+      - name: Validate Bicep contains F1 hard lock
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! grep -q "requiredSkuName = 'F1'" "${{ env.BICEP_FILE }}"; then
+            echo "::error::F1 hard lock is missing from the Bicep template."
+            exit 1
+          fi
+
+          if grep -Eq "B1|B2|B3|P0|P1|P2|P3|S1|S2|S3" "${{ env.BICEP_FILE }}"; then
+            echo "::error::A paid App Service SKU token was found in the FREE Bicep template."
+            exit 1
+          fi
+
+      - name: Preview Azure changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az deployment group what-if \
+            --resource-group '${{ env.AZURE_RESOURCE_GROUP }}' \
+            --template-file '${{ env.BICEP_FILE }}' \
+            --parameters \
+              location='${{ env.AZURE_LOCATION }}' \
+              appServicePlanName='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}' \
+              webAppName='${{ env.AZURE_WEBAPP_NAME }}'
+
+      - name: Provision F1 App Service Plan and Web App
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az deployment group create \
+            --name "generic-inventory-free-${GITHUB_RUN_ID}" \
+            --resource-group '${{ env.AZURE_RESOURCE_GROUP }}' \
+            --template-file '${{ env.BICEP_FILE }}' \
+            --parameters \
+              location='${{ env.AZURE_LOCATION }}' \
+              appServicePlanName='${{ env.AZURE_APP_SERVICE_PLAN_NAME }}' \
+              webAppName='${{ env.AZURE_WEBAPP_NAME }}'
+
+      - name: Verify provisioned plan is exactly F1
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RG='${{ env.AZURE_RESOURCE_GROUP }}'
+          APP='${{ env.AZURE_WEBAPP_NAME }}'
+
+          PLAN_ID="$(az webapp show --name "$APP" --resource-group "$RG" --query serverFarmId -o tsv)"
+          SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
+          SKU_TIER="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.tier' -o tsv)"
+
+          echo "Provisioned SKU: $SKU_NAME ($SKU_TIER)"
+
+          if [ "$SKU_NAME" != "${{ env.REQUIRED_SKU }}" ]; then
+            echo "::error::Cost guard failed. Expected F1, got $SKU_NAME ($SKU_TIER)."
+            exit 1
+          fi
+
+          echo "FREE infrastructure verified successfully."

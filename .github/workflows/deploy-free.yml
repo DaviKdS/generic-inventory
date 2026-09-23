@@ -1,0 +1,100 @@
+name: Deploy FREE to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'GenericInventory.csproj'
+  PUBLISH_PATH: './publish'
+  REQUIRED_SKU: 'F1'
+  REQUIRED_TIER: 'Free'
+  AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
+  AZURE_LOCATION: 'brazilsouth'
+  AZURE_APP_SERVICE_PLAN_NAME: 'asp-generic-inventory-free'
+  AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
+
+jobs:
+  build-test-deploy:
+    name: Build, validate FREE tier and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "${{ env.PROJECT_PATH }}"
+
+      - name: Build
+        run: dotnet build "${{ env.PROJECT_PATH }}" --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish "${{ env.PROJECT_PATH }}" --configuration Release --no-build --output "${{ env.PUBLISH_PATH }}"
+
+      - name: Login to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Zero-cost guard - require exact existing F1 plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_NAME="${{ env.AZURE_WEBAPP_NAME }}"
+          RG="${{ env.AZURE_RESOURCE_GROUP }}"
+          EXPECTED_PLAN="${{ env.AZURE_APP_SERVICE_PLAN_NAME }}"
+
+          WEBAPP_JSON="$(az webapp show --name "$APP_NAME" --resource-group "$RG" -o json)" || {
+            echo "::error::The Web App does not exist. Run the manual provisioning workflow first."
+            exit 1
+          }
+
+          PLAN_ID="$(echo "$WEBAPP_JSON" | jq -r '.serverFarmId')"
+          if [ -z "$PLAN_ID" ] || [ "$PLAN_ID" = "null" ]; then
+            echo "::error::Unable to resolve the App Service Plan."
+            exit 1
+          fi
+
+          PLAN_NAME="$(basename "$PLAN_ID")"
+          SKU_NAME="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.name' -o tsv)"
+          SKU_TIER="$(az appservice plan show --ids "$PLAN_ID" --query 'sku.tier' -o tsv)"
+
+          echo "Detected App Service Plan: $PLAN_NAME"
+          echo "Detected SKU: $SKU_NAME ($SKU_TIER)"
+
+          if [ "$PLAN_NAME" != "$EXPECTED_PLAN" ]; then
+            echo "::error::Deployment blocked: expected plan '$EXPECTED_PLAN', detected '$PLAN_NAME'."
+            exit 1
+          fi
+
+          if [ "$SKU_NAME" != "${{ env.REQUIRED_SKU }}" ] || [ "$SKU_TIER" != "${{ env.REQUIRED_TIER }}" ]; then
+            echo "::error::Deployment blocked: App Service Plan must be exactly F1/Free. Detected: $SKU_NAME/$SKU_TIER."
+            exit 1
+          fi
+
+          echo "Zero-cost guard passed: exact expected plan and F1/Free SKU confirmed."
+
+      - name: Deploy to existing Azure App Service F1
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.PUBLISH_PATH }}
