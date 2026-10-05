@@ -31,7 +31,7 @@
     pendingPassword: null,
     sessionSyncTimer: null,
     sidebarCollapsed: readStoredBoolean("generic-inventory.sidebarCollapsed"),
-    language: readStoredString("generic-inventory.language", "pt") === "en" ? "en" : "pt",
+    language: "pt",
     theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light"
   };
 
@@ -59,7 +59,7 @@
 
   async function init() {
     bindElements();
-    document.documentElement.lang = state.language === "en" ? "en" : "pt-BR";
+    document.documentElement.lang = "pt-BR";
     setTheme(state.theme, false);
     bindEvents();
     readPasswordInvite();
@@ -101,11 +101,6 @@
         return;
       }
 
-      if (event.target.closest("[data-language-toggle]")) {
-        toggleLanguage();
-        return;
-      }
-
       if (event.target.closest("[data-forgot-password]")) {
         forgotPassword().catch(showError);
       }
@@ -123,8 +118,6 @@
     elements.userMenu.addEventListener("click", (event) => {
       if (event.target.closest("[data-theme-toggle]")) {
         toggleTheme();
-      } else if (event.target.closest("[data-language-toggle]")) {
-        toggleLanguage();
       } else if (event.target.closest("[data-logout]")) {
         logout().catch(showError);
       }
@@ -147,6 +140,11 @@
 
   function readPasswordInvite() {
     const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get("view");
+    if (requestedView && views.some((view) => view.id === requestedView)) {
+      state.view = requestedView;
+    }
+
     if (params.get("view") === "password" && params.get("uid") && params.get("token")) {
       state.pendingPassword = { id: params.get("uid"), token: params.get("token") };
       setAuthTab("password");
@@ -388,52 +386,8 @@
         </div>
       </div>
       <button class="button ghost theme-toggle" type="button" data-theme-toggle title="${themeToggleLabel()}" aria-label="${themeToggleLabel()}">Tema</button>
-      <button class="button ghost language-toggle" type="button" data-language-toggle title="${languageToggleLabel()}" aria-label="${languageToggleLabel()}"><i data-lucide="languages"></i><span>${state.language.toUpperCase()}</span></button>
-      <button class="button ghost" type="button" data-logout><i data-lucide="log-out"></i><span>${state.language === "en" ? "Sign out" : "Sair"}</span></button>
+      <button class="button ghost" type="button" data-logout><i data-lucide="log-out"></i><span>Sair</span></button>
     ` : "";
-    refreshIcons();
-  }
-
-  function toggleLanguage() {
-    setLanguage(state.language === "pt" ? "en" : "pt");
-  }
-
-  function setLanguage(language, persist = true) {
-    state.language = language === "en" ? "en" : "pt";
-    document.documentElement.lang = state.language === "en" ? "en" : "pt-BR";
-
-    if (persist) {
-      try {
-        localStorage.setItem("generic-inventory.language", state.language);
-      } catch {
-        // Language persistence is optional; the toggle still works for the session.
-      }
-    }
-
-    renderNav();
-    renderUserMenu();
-    renderThemeToggleButtons();
-    renderLanguageToggleButtons();
-    renderFooter();
-    loadCurrentView().catch(showError);
-  }
-
-  function languageToggleLabel() {
-    return state.language === "pt" ? "Switch to English" : "Mudar para português";
-  }
-
-  function renderLanguageToggleButtons() {
-    const label = languageToggleLabel();
-    document.querySelectorAll("[data-language-toggle]").forEach((button) => {
-      button.title = label;
-      button.setAttribute("aria-label", label);
-      const text = state.language === "en" ? "EN" : "PT";
-      if (button.classList.contains("icon-button")) {
-        button.innerHTML = `<i data-lucide="languages"></i><span class="sr-only">${escapeHtml(text)}</span>`;
-      } else {
-        button.innerHTML = `<i data-lucide="languages"></i><span>${escapeHtml(text)}</span>`;
-      }
-    });
     refreshIcons();
   }
 
@@ -456,7 +410,6 @@
     }
 
     renderThemeToggleButtons();
-    renderLanguageToggleButtons();
   }
 
   function renderThemeToggleButtons() {
@@ -465,18 +418,14 @@
       button.title = label;
       button.setAttribute("aria-label", label);
       const text = state.theme === "dark"
-        ? (state.language === "en" ? "Light theme" : "Tema claro")
-        : (state.language === "en" ? "Dark theme" : "Tema escuro");
+        ? "Tema claro"
+        : "Tema escuro";
       button.innerHTML = `<i data-lucide="${state.theme === "dark" ? "sun" : "moon"}"></i><span class="button-label">${text}</span>`;
     });
     refreshIcons();
   }
 
   function themeToggleLabel() {
-    if (state.language === "en") {
-      return state.theme === "dark" ? "Use light theme" : "Use dark theme";
-    }
-
     return state.theme === "dark" ? "Usar tema claro" : "Usar tema escuro";
   }
 
@@ -799,71 +748,12 @@
         ${metric("Reservados", reserved)}
         ${metric("Ocupação", `${occupancy}%`, occupancy >= 90 ? "bad" : occupancy >= 75 ? "warn" : "good")}
       </section>
-      <details class="panel room-map-panel" open>
-        <summary class="panel-heading room-map-heading">
-          <div>
-            <h2>Mapa das camas</h2>
-            <p>Use o lápis em uma cama para editar status ou o botão geral de adição para criar uma nova cama.</p>
-          </div>
-          <span class="tag">${visibleRooms.length} visível(is)</span>
-        </summary>
-        <div class="room-map-actions">
-          <button class="button secondary" type="button" data-room-show-add><i data-lucide="plus"></i><span>Adicionar cama</span></button>
-        </div>
-        ${renderRoomMap(data, visibleRooms)}
-      </details>
-      <section class="panel toolbar">
-        <select data-room-status-filter aria-label="Filtrar status">
-          <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
-          ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
-        </select>
-      </section>
       <section class="reservation-overview ${state.roomAction ? "" : "summary-only"}">
-        ${state.roomAction === "edit" ? `
-        <form class="panel form-grid reservation-form" data-room-reservation-form>
-          <div class="panel-heading">
-            <h2>Editar status</h2>
-            <span class="tag">Sem dados pessoais</span>
-          </div>
-          <label>
-            <span>Cama</span>
-            <select name="roomKey" required>
-              ${rooms.map((item) => {
-                const key = `${item.areaId}|${item.id}`;
-                return `<option value="${escapeAttribute(key)}" ${state.selectedRoomKey === key ? "selected" : ""}>${escapeHtml(item.label)}</option>`;
-              }).join("")}
-            </select>
-          </label>
-          ${input("Identificação da cama", "roomLabel", selectedRoom.label || "", true)}
-          ${input("Tipo/categoria", "category", selectedRoom.category || "Leito")}
-          ${input("Capacidade", "capacity", selectedRoom.capacity || 1, true, "number")}
-          <label>
-            <span>Status</span>
-            <select name="status" required>
-              ${roomStatusOptions(selectedRoom.status)}
-            </select>
-          </label>
-          ${input("Código da reserva", "reservationCode", selectedRoom.reservationCode || "", false)}
-          <label>
-            <span>Entrada prevista</span>
-            <input name="checkIn" type="date" value="${escapeAttribute(selectedRoom.checkIn || "")}">
-          </label>
-          <label>
-            <span>Saída prevista</span>
-            <input name="checkOut" type="date" value="${escapeAttribute(selectedRoom.checkOut || "")}">
-          </label>
-          <label>
-            <span>Observação operacional</span>
-            <input name="note" value="${escapeAttribute(selectedRoom.note || "")}" placeholder="Ex.: vistoria, limpeza, manutenção">
-          </label>
-          <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar status</span></button>
-        </form>
-        ` : ""}
         ${state.roomAction === "add" ? `
         <form class="panel form-grid room-add-form" data-room-add-form>
           <div class="panel-heading">
             <h2>Adicionar cama</h2>
-            <span class="tag good">Mapa</span>
+            <span class="tag good">Camas</span>
           </div>
           ${input("Identificação da cama", "roomLabel", nextBedLabel(rooms))}
           ${input("Tipo/categoria", "category", "Leito")}
@@ -883,6 +773,25 @@
           </dl>
           <p>Use códigos internos de reserva. Não registre nome, documento, telefone, endereço ou dados sensíveis nesta tela.</p>
         </section>
+      </section>
+      <section class="panel room-list-panel">
+        <div class="panel-heading room-list-heading">
+          <div>
+            <h2>Camas</h2>
+            <p>Use o lápis em cada cama para abrir o formulário de status e informações.</p>
+          </div>
+          <span class="tag">${visibleRooms.length} visível(is)</span>
+        </div>
+        <div class="room-map-actions">
+          <label class="room-status-control">
+            <span>Status</span>
+            <select data-room-status-filter aria-label="Filtrar status">
+              <option value="all" ${state.roomFilter.status === "all" ? "selected" : ""}>Todos os status</option>
+              ${roomStatuses().map((status) => `<option value="${escapeAttribute(status.id)}" ${state.roomFilter.status === status.id ? "selected" : ""}>${escapeHtml(status.label)}</option>`).join("")}
+            </select>
+          </label>
+          <button class="button secondary" type="button" data-room-show-add><i data-lucide="plus"></i><span>Adicionar cama</span></button>
+        </div>
       </section>
       <section class="room-grid">
         ${visibleRooms.map(renderRoomCard).join("") || empty("Nenhuma cama encontrada para este filtro.")}
@@ -920,11 +829,7 @@
         ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
         ${canOperate ? `
           <div class="room-actions">
-            <button class="icon-button" type="button" title="Disponível" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|available"><i data-lucide="check"></i></button>
-            <button class="icon-button" type="button" title="Reservar" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|reserved"><i data-lucide="calendar-plus"></i></button>
-            <button class="icon-button" type="button" title="Ocupar" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|occupied"><i data-lucide="door-closed"></i></button>
-            <button class="icon-button" type="button" title="Limpeza" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|cleaning"><i data-lucide="sparkles"></i></button>
-            <button class="icon-button" type="button" title="Manutenção" data-room-quick="${escapeAttribute(item.areaId)}|${escapeAttribute(item.id)}|maintenance"><i data-lucide="wrench"></i></button>
+            <a class="icon-button" title="Editar status" aria-label="Editar status de ${escapeAttribute(item.label)}" href="/form?room=${encodeURIComponent(`${item.areaId}|${item.id}`)}"><i data-lucide="pencil"></i></a>
           </div>
         ` : ""}
       </article>
@@ -943,9 +848,13 @@
             ${visibleRooms.map((room) => {
               const status = roomStatuses().find((item) => item.id === room.status) || roomStatuses()[0];
               const key = `${room.areaId}|${room.id}`;
+              const removable = can(permissions.stockMove) && canDeleteRoom(room);
               return `
-                <article class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}">
-                  <button class="room-map-edit" type="button" data-room-edit="${escapeAttribute(key)}" title="Editar status de ${escapeAttribute(room.label)}" aria-label="Editar status de ${escapeAttribute(room.label)}"><i data-lucide="pencil"></i></button>
+                <article class="room-map-tile ${escapeAttribute(room.status)} ${state.selectedRoomKey === key ? "selected" : ""}" data-room-pick="${escapeAttribute(key)}" role="button" tabindex="0" aria-label="Abrir opções de ${escapeAttribute(room.label)}">
+                  <div class="room-map-card-actions">
+                    ${can(permissions.stockMove) ? `<a class="room-map-action" href="/form?room=${encodeURIComponent(key)}" title="Editar status de ${escapeAttribute(room.label)}" aria-label="Editar status de ${escapeAttribute(room.label)}"><i data-lucide="pencil"></i></a>` : ""}
+                    ${removable ? `<button class="room-map-action danger" type="button" data-room-delete="${escapeAttribute(key)}" title="Excluir ${escapeAttribute(room.label)}" aria-label="Excluir ${escapeAttribute(room.label)}"><i data-lucide="trash-2"></i></button>` : ""}
+                  </div>
                   <strong>${escapeHtml(room.label)}</strong>
                   <span>${escapeHtml(status.label)}</span>
                   <small>${escapeHtml(room.reservationCode || room.category)}</small>
@@ -1052,12 +961,14 @@
       data.areas[0]?.id === "camas";
 
     if (!isCurrentModel) {
+      markBaseBeds(fallback);
       return fallback;
     }
 
     data.history = Array.isArray(data.history) ? data.history : [];
     data.areas[0].name = "Camas";
     data.areas[0].rooms = Array.isArray(data.areas[0].rooms) ? data.areas[0].rooms : fallback.areas[0].rooms;
+    markBaseBeds(data);
     return data;
   }
 
@@ -1154,6 +1065,7 @@
     }
 
     const room = roomSeed(label, sanitizeOperationalNote(category) || "Leito", Math.max(1, Number(capacity || 1)), "available");
+    room.fixed = false;
     area.rooms.push(room);
     data.history.unshift({
       date: new Date().toISOString(),
@@ -1167,6 +1079,57 @@
     state.selectedRoomKey = `${area.id}|${room.id}`;
     state.roomFilter.status = "all";
     saveRoomReservations();
+  }
+
+  function deleteRoomReservation(roomKey) {
+    const data = loadRoomReservations();
+    const [areaId, roomId] = String(roomKey || "").split("|");
+    const area = data.areas.find((item) => item.id === areaId);
+    const room = area?.rooms.find((item) => item.id === roomId);
+    if (!area || !room) {
+      throw new Error("Cama não encontrada.");
+    }
+
+    if (!canDeleteRoom({ ...room, areaId: area.id })) {
+      throw new Error("As camas fixas de Cama 1 a Cama 24 não podem ser excluídas.");
+    }
+
+    area.rooms = area.rooms.filter((item) => item.id !== room.id);
+    data.history.unshift({
+      date: new Date().toISOString(),
+      areaName: area.name,
+      roomLabel: room.label,
+      status: room.status,
+      reservationCode: room.reservationCode || "",
+      note: "Cama adicional excluída"
+    });
+    data.history = data.history.slice(0, 60);
+    state.selectedRoomKey = "";
+    state.roomAction = "";
+    saveRoomReservations();
+  }
+
+  function canDeleteRoom(room) {
+    return room.areaId === "camas" && room.fixed !== true;
+  }
+
+  function roomLabelFromKey(roomKey) {
+    return flattenRooms(loadRoomReservations())
+      .find((room) => `${room.areaId}|${room.id}` === roomKey)
+      ?.label || "";
+  }
+
+  function markBaseBeds(data) {
+    const rooms = data.areas?.[0]?.rooms || [];
+    rooms.forEach((room) => {
+      const match = /^Cama\s+(\d+)$/i.exec(room.label || "");
+      const number = match ? Number(match[1]) : 0;
+      if (number >= 1 && number <= 24) {
+        room.fixed = true;
+      } else if (room.fixed !== true) {
+        room.fixed = false;
+      }
+    });
   }
 
   function roomReservationAlert(occupancy, available, offline) {
@@ -1736,7 +1699,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Generic bed reservations</h2>
-          <p>The Reservations page starts with 24 editable beds, includes a collapsible visual bed map, lets operators add more beds, and uses only internal reservation codes. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
+          <p>The Reservations page starts with 24 editable beds, lets operators add more beds, and opens a dedicated segmented form at <code>/form</code> to choose status, identify the operator, and save operational details. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1775,7 +1738,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Reservas genéricas de camas</h2>
-          <p>A tela Reservas inicia com 24 camas editáveis, inclui mapa visual recolhível das camas, permite adicionar novas camas e usa apenas códigos internos de reserva. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
+          <p>A tela Reservas inicia com 24 camas editáveis, permite adicionar novas camas e abre um formulário segmentado em <code>/form</code> para escolher status, identificar o responsável e salvar detalhes operacionais. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="clipboard-list"></i>
@@ -1832,6 +1795,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.2.9-beta</span>
+            <h2>${state.language === "en" ? "Segmented bed edit flow" : "Fluxo segmentado para edição de camas"}</h2>
+            <p>${state.language === "en"
+              ? "Replaces the bed map pop-up with a dedicated /form page, keeps mobile editing stable, and adds operator identification when changing bed status."
+              : "Substitui o pop-up do mapa de camas por uma página dedicada em /form, estabiliza a edição no mobile e adiciona identificação do responsável ao alterar o status da cama."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.8-beta</span>
@@ -1907,10 +1879,10 @@
         <article class="panel release-card">
           <div>
             <span class="tag good">v1.1.0</span>
-            <h2>${state.language === "en" ? "English support and visual improvements" : "Suporte em inglês e melhorias visuais"}</h2>
+            <h2>${state.language === "en" ? "Documentation and visual improvements" : "Documentação e melhorias visuais"}</h2>
             <p>${state.language === "en"
-              ? "Adds PT/EN interface navigation, documentation inside the app, release notes, visual refinements, image upload improvements, and service copyright/contact information."
-              : "Adiciona navegação PT/EN, documentação dentro do app, notas de versão, refinamentos visuais, melhorias no anexo de imagens e informações de direitos autorais/contato do serviço."}</p>
+              ? "Adds documentation inside the app, release notes, visual refinements, image upload improvements, and service copyright/contact information."
+              : "Adiciona documentação dentro do app, notas de versão, refinamentos visuais, melhorias no anexo de imagens e informações de direitos autorais/contato do serviço."}</p>
           </div>
         </article>
         <article class="panel release-card">
@@ -1955,14 +1927,15 @@
         await renderRoomReservations();
       } else if (target.dataset.roomEdit) {
         state.selectedRoomKey = target.dataset.roomEdit;
-        state.roomAction = "edit";
+        state.roomAction = "";
         await renderRoomReservations();
-      } else if (target.dataset.roomQuick) {
-        const [areaId, roomId, status] = target.dataset.roomQuick.split("|");
-        state.selectedRoomKey = `${areaId}|${roomId}`;
-        updateRoomReservation(`${areaId}|${roomId}`, status);
-        showToast("Status da cama atualizado.", "success");
-        await renderRoomReservations();
+      } else if (target.dataset.roomDelete) {
+        const label = roomLabelFromKey(target.dataset.roomDelete);
+        if (confirm(`Excluir ${label || "esta cama adicional"}?`)) {
+          deleteRoomReservation(target.dataset.roomDelete);
+          showToast("Cama adicional excluída.", "success");
+          await renderRoomReservations();
+        }
       } else if (target.dataset.roomResetDemo !== undefined) {
         if (confirm("Restaurar as 24 camas de exemplo?")) {
           state.roomReservations = defaultRoomReservations();
@@ -2204,6 +2177,7 @@
       Number(data.get("capacity") || 1)
     );
     showToast("Reserva atualizada.", "success");
+    state.roomAction = "";
     await renderRoomReservations();
   }
 

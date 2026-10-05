@@ -198,6 +198,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/form", (IWebHostEnvironment environment) =>
+{
+    var filePath = Path.Combine(environment.WebRootPath, "form.html");
+    return Results.File(filePath, "text/html");
+});
 
 app.Run();
 

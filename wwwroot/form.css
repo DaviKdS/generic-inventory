@@ -1,0 +1,154 @@
+.form-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(var(--blue-rgb), 0.14), transparent 28%),
+    var(--bg);
+}
+
+.form-shell {
+  display: grid;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 18px;
+}
+
+.form-topbar {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.form-topbar h1 {
+  font-size: clamp(1.45rem, 4vw, 2rem);
+  margin: 6px 0 4px;
+}
+
+.form-topbar p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.form-content {
+  display: grid;
+  gap: 16px;
+}
+
+.form-card {
+  background: rgba(var(--surface-rgb), 0.94);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.form-card.available {
+  border-left-color: var(--green);
+}
+
+.form-card.reserved,
+.form-card.cleaning {
+  border-left-color: var(--gold);
+}
+
+.form-card.occupied {
+  border-left-color: var(--coral);
+}
+
+.form-card.maintenance {
+  border-left-color: var(--muted);
+}
+
+.form-card-header {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.form-card-header h2 {
+  margin: 6px 0 0;
+}
+
+.status-picker {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.status-choice {
+  align-items: center;
+  background: rgba(var(--surface-rgb), 0.86);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  display: flex;
+  font-weight: 900;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px;
+  text-align: left;
+}
+
+.status-choice:hover,
+.status-choice:focus-visible,
+.status-choice.selected {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+  outline: 0;
+}
+
+.status-choice.available svg {
+  color: var(--green);
+}
+
+.status-choice.reserved svg,
+.status-choice.cleaning svg {
+  color: var(--gold);
+}
+
+.status-choice.occupied svg {
+  color: var(--coral);
+}
+
+.status-choice.maintenance svg {
+  color: var(--muted);
+}
+
+.room-form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.room-form .full,
+.room-form .form-actions {
+  grid-column: 1 / -1;
+}
+
+.room-form .form-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .form-shell {
+    padding: 14px;
+  }
+
+  .status-picker,
+  .room-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-card {
+    padding: 14px;
+  }
+
+  .room-form .form-actions .button {
+    flex: 1;
+  }
+}

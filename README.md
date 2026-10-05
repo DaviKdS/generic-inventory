@@ -77,14 +77,14 @@ Não commite arquivos de `App_Data`, bancos SQLite, tokens, senhas ou URLs reais
 - Developer pode definir ou substituir senhas diretamente, inclusive quando o usuário ainda dependeria de link de senha.
 - Alterações de perfil e visibilidade são sincronizadas automaticamente em sessões desktop e mobile.
 - Importação Developer com prévia de colunas, seleção de campos, criação de itens novos e atualização de itens existentes.
-- Página de reservas de camas genérica com 24 camas iniciais editáveis, mapa visual recolhível, inclusão de novas camas, disponibilidade, ocupação, limpeza, manutenção, histórico operacional recolhível e códigos internos de reserva.
+- Página de reservas de camas genérica com 24 camas iniciais editáveis, inclusão de novas camas, disponibilidade, ocupação, limpeza, manutenção, formulário segmentado em `/form`, identificação do responsável pela alteração, histórico operacional recolhível e códigos internos de reserva.
 - O monitoramento de reservas evita dados pessoais: não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.
 - Lembretes de estoque crítico (`EstoqueAtual <= EstoqueMinimo`), editáveis pelo admin.
 - Envio de lembrete por Power Automate HTTP quando configurado.
 - Fallback por SMTP quando `Smtp__Host` estiver configurado.
 - Sem Power Automate e sem SMTP, alertas ficam registrados em log local dentro de `App_Data`.
 - Tema claro/escuro com preferência salva no navegador.
-- Navegação interna com documentação, releases e suporte básico PT/EN.
+- Navegação interna com documentação e releases em português.
 - Revisão de textos visíveis em português e correção do login Developer padrão.
 
 ## Próxima Atualização

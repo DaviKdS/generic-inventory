@@ -1,21 +1,21 @@
 :root {
   color-scheme: light;
-  --bg: #f6f7f4;
-  --bg-rgb: 246, 247, 244;
+  --bg: #f8f5fb;
+  --bg-rgb: 248, 245, 251;
   --surface: #ffffff;
   --surface-rgb: 255, 255, 255;
-  --surface-2: #eef3f7;
-  --surface-3: #f8fbfd;
+  --surface-2: #f0e7f8;
+  --surface-3: #fbf8fd;
   --sidebar: rgba(255, 255, 255, 0.86);
-  --ink: #1d252c;
-  --muted: #66727d;
-  --line: #d9e1e7;
-  --line-strong: rgba(31, 94, 153, 0.22);
-  --blue: #1f5e99;
-  --blue-rgb: 31, 94, 153;
-  --blue-2: #dceafb;
-  --teal: #24b8a6;
-  --teal-rgb: 36, 184, 166;
+  --ink: #24182d;
+  --muted: #74677d;
+  --line: #e2d6eb;
+  --line-strong: rgba(112, 54, 153, 0.26);
+  --blue: #703699;
+  --blue-rgb: 112, 54, 153;
+  --blue-2: #efe2f8;
+  --teal: #6b4fd6;
+  --teal-rgb: 107, 79, 214;
   --green: #2f7d5c;
   --green-2: #def2e8;
   --coral: #c8523c;
@@ -23,34 +23,34 @@
   --gold: #9b6a16;
   --gold-2: #fff2c7;
   --primary-contrast: #ffffff;
-  --auth-blue-glow: rgba(31, 94, 153, 0.12);
-  --auth-green-glow: rgba(47, 125, 92, 0.13);
-  --tab-shadow: 0 4px 12px rgba(30, 60, 80, 0.08);
-  --shadow: 0 18px 45px rgba(32, 45, 55, 0.12);
-  --shadow-soft: 0 12px 30px rgba(25, 45, 66, 0.08);
-  --shadow-hover: 0 26px 60px rgba(31, 94, 153, 0.16);
+  --auth-blue-glow: rgba(112, 54, 153, 0.13);
+  --auth-green-glow: rgba(107, 79, 214, 0.11);
+  --tab-shadow: 0 4px 12px rgba(70, 38, 94, 0.08);
+  --shadow: 0 18px 45px rgba(44, 28, 58, 0.13);
+  --shadow-soft: 0 12px 30px rgba(60, 36, 78, 0.09);
+  --shadow-hover: 0 26px 60px rgba(112, 54, 153, 0.18);
   --motion-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #101513;
-  --bg-rgb: 16, 21, 19;
-  --surface: #17201d;
-  --surface-rgb: 23, 32, 29;
-  --surface-2: #22302c;
-  --surface-3: #1b2723;
-  --sidebar: rgba(20, 27, 25, 0.86);
-  --ink: #eef5f1;
-  --muted: #a8b5ae;
-  --line: #31413c;
-  --line-strong: rgba(115, 185, 232, 0.28);
-  --blue: #73b9e8;
-  --blue-rgb: 115, 185, 232;
-  --blue-2: #163249;
-  --teal: #67e1d1;
-  --teal-rgb: 103, 225, 209;
+  --bg: #15101a;
+  --bg-rgb: 21, 16, 26;
+  --surface: #201728;
+  --surface-rgb: 32, 23, 40;
+  --surface-2: #2d2038;
+  --surface-3: #251a2e;
+  --sidebar: rgba(28, 20, 35, 0.88);
+  --ink: #fbf7ff;
+  --muted: #c5b8cf;
+  --line: #43304f;
+  --line-strong: rgba(206, 164, 255, 0.3);
+  --blue: #c79aff;
+  --blue-rgb: 199, 154, 255;
+  --blue-2: #3a2550;
+  --teal: #9f8cff;
+  --teal-rgb: 159, 140, 255;
   --green: #82d7aa;
   --green-2: #173b2c;
   --coral: #f08c75;
@@ -58,12 +58,12 @@
   --gold: #e6c466;
   --gold-2: #493916;
   --primary-contrast: #07121a;
-  --auth-blue-glow: rgba(115, 185, 232, 0.15);
-  --auth-green-glow: rgba(130, 215, 170, 0.13);
+  --auth-blue-glow: rgba(199, 154, 255, 0.16);
+  --auth-green-glow: rgba(159, 140, 255, 0.12);
   --tab-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   --shadow: 0 20px 55px rgba(0, 0, 0, 0.38);
   --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.28);
-  --shadow-hover: 0 28px 70px rgba(34, 164, 255, 0.2);
+  --shadow-hover: 0 28px 70px rgba(176, 121, 255, 0.22);
 }
 
 * {
@@ -1086,8 +1086,24 @@ textarea {
 }
 
 .room-map-actions {
+  align-items: end;
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
+}
+
+.room-status-control {
+  display: grid;
+  gap: 6px;
+  min-width: min(260px, 100%);
+}
+
+.room-status-control span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .room-map {
@@ -1130,11 +1146,12 @@ textarea {
   border-left: 5px solid var(--blue);
   border-radius: 8px;
   color: var(--ink);
+  cursor: pointer;
   display: grid;
   gap: 3px;
   min-height: 86px;
   padding: 10px;
-  padding-right: 46px;
+  padding-right: 84px;
   position: relative;
   text-align: left;
   transition:
@@ -1143,7 +1160,15 @@ textarea {
     transform 220ms var(--motion-standard);
 }
 
-.room-map-edit {
+.room-map-card-actions {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+
+.room-map-action {
   align-items: center;
   background: rgba(var(--surface-rgb), 0.9);
   border: 1px solid var(--line);
@@ -1152,26 +1177,29 @@ textarea {
   display: inline-flex;
   height: 32px;
   justify-content: center;
-  position: absolute;
-  right: 8px;
-  top: 8px;
   width: 32px;
 }
 
-.room-map-edit:hover {
+.room-map-action:hover {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-soft);
 }
 
-.room-map-edit svg {
+.room-map-action.danger {
+  color: var(--coral);
+}
+
+.room-map-action svg {
   height: 16px;
   width: 16px;
 }
 
 .room-map-tile:hover,
+.room-map-tile:focus-visible,
 .room-map-tile.selected {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-soft);
+  outline: 0;
   transform: translateY(-1px);
 }
 

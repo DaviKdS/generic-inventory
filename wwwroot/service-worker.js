@@ -1,7 +1,11 @@
-const CACHE_NAME = "generic-inventory-v16";
+const CACHE_NAME = "generic-inventory-v26";
 const APP_SHELL = [
   "/",
   "/index.html",
+  "/form",
+  "/form.html",
+  "/form.css",
+  "/form.js",
   "/styles.css",
   "/app.js",
   "/manifest.webmanifest",

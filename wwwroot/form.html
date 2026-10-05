@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editar cama</title>
+  <meta name="theme-color" content="#f8f5fb">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <script>
+    (() => {
+      try {
+        const storedTheme = localStorage.getItem("generic-inventory.theme");
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = storedTheme || systemTheme;
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/form.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="/form.js"></script>
+</head>
+<body class="form-page">
+  <main class="form-shell">
+    <header class="form-topbar">
+      <a class="icon-button ghost" href="/?view=rooms" aria-label="Voltar para reservas" title="Voltar">
+        <i data-lucide="arrow-left"></i>
+      </a>
+      <div>
+        <span class="tag">Reservas</span>
+        <h1 id="formTitle">Editar cama</h1>
+        <p id="formSubtitle">Escolha o status e preencha os campos necessários.</p>
+      </div>
+    </header>
+
+    <section id="formMessage" class="message hidden"></section>
+    <section id="formContent" class="form-content"></section>
+  </main>
+</body>
+</html>
