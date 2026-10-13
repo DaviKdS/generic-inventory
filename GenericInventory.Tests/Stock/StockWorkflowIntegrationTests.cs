@@ -94,6 +94,93 @@ public class StockWorkflowIntegrationTests : IClassFixture<TestWebApplicationFac
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task StandardUser_ShouldNotManageScreenVisibility()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/access/screen-visibility")
+        {
+            Content = JsonContent.Create(new
+            {
+                hiddenFieldsByRole = new
+                {
+                    standard = new[] { "cpf" }
+                }
+            })
+        };
+        request.Headers.Add("X-Test-Role", "standard");
+
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Reservations_ShouldLoadInitialBedsForStandardUser()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/rooms");
+        request.Headers.Add("X-Test-Role", "standard");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var area = Assert.Single(payload.GetProperty("areas").EnumerateArray());
+        Assert.Equal("camas", area.GetProperty("id").GetString());
+        Assert.Equal(24, area.GetProperty("rooms").GetArrayLength());
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task StandardUser_ShouldNotResetReservations()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/rooms/reset-demo");
+        request.Headers.Add("X-Test-Role", "standard");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Reservations_ShouldPersistEditableFieldsForAvailableBed()
+    {
+        using var updateRequest = new HttpRequestMessage(HttpMethod.Put, "/api/rooms/cama-1")
+        {
+            Content = JsonContent.Create(new
+            {
+                roomLabel = "Cama 1",
+                category = "Leito",
+                capacity = 1,
+                status = "available",
+                guestName = "Pessoa Teste",
+                cpf = "12345678901",
+                phone = "11999999999",
+                bloodType = "O+",
+                note = "Registro editável"
+            })
+        };
+        updateRequest.Headers.Add("X-Test-Role", "standard");
+
+        var updateResponse = await _client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        using var getRequest = new HttpRequestMessage(HttpMethod.Get, "/api/rooms");
+        getRequest.Headers.Add("X-Test-Role", "standard");
+        var getResponse = await _client.SendAsync(getRequest);
+        var payload = await getResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var rooms = Assert.Single(payload.GetProperty("areas").EnumerateArray()).GetProperty("rooms");
+        var bed = rooms.EnumerateArray().Single(item => item.GetProperty("id").GetString() == "cama-1");
+
+        Assert.Equal("Pessoa Teste", bed.GetProperty("guestName").GetString());
+        Assert.Equal("12345678901", bed.GetProperty("cpf").GetString());
+        Assert.Equal("11999999999", bed.GetProperty("phone").GetString());
+        Assert.Equal("O+", bed.GetProperty("bloodType").GetString());
+        Assert.Equal("Registro editável", bed.GetProperty("note").GetString());
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task ReminderTest_ShouldUseFallbackLogWhenSmtpIsNotConfigured()
     {
         await ClearPowerAutomateSettingsAsync();

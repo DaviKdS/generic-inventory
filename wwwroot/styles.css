@@ -1,21 +1,21 @@
 :root {
   color-scheme: light;
-  --bg: #f8f5fb;
-  --bg-rgb: 248, 245, 251;
+  --bg: #f4f9fc;
+  --bg-rgb: 244, 249, 252;
   --surface: #ffffff;
   --surface-rgb: 255, 255, 255;
-  --surface-2: #f0e7f8;
-  --surface-3: #fbf8fd;
+  --surface-2: #e7f2f7;
+  --surface-3: #f7fbfd;
   --sidebar: rgba(255, 255, 255, 0.86);
-  --ink: #24182d;
-  --muted: #74677d;
-  --line: #e2d6eb;
-  --line-strong: rgba(112, 54, 153, 0.26);
-  --blue: #703699;
-  --blue-rgb: 112, 54, 153;
-  --blue-2: #efe2f8;
-  --teal: #6b4fd6;
-  --teal-rgb: 107, 79, 214;
+  --ink: #102334;
+  --muted: #587082;
+  --line: #cfe0e8;
+  --line-strong: rgba(15, 99, 143, 0.3);
+  --blue: #0b628f;
+  --blue-rgb: 11, 98, 143;
+  --blue-2: #dff4fb;
+  --teal: #0f9fb5;
+  --teal-rgb: 15, 159, 181;
   --green: #2f7d5c;
   --green-2: #def2e8;
   --coral: #c8523c;
@@ -23,34 +23,34 @@
   --gold: #9b6a16;
   --gold-2: #fff2c7;
   --primary-contrast: #ffffff;
-  --auth-blue-glow: rgba(112, 54, 153, 0.13);
-  --auth-green-glow: rgba(107, 79, 214, 0.11);
-  --tab-shadow: 0 4px 12px rgba(70, 38, 94, 0.08);
-  --shadow: 0 18px 45px rgba(44, 28, 58, 0.13);
-  --shadow-soft: 0 12px 30px rgba(60, 36, 78, 0.09);
-  --shadow-hover: 0 26px 60px rgba(112, 54, 153, 0.18);
+  --auth-blue-glow: rgba(11, 98, 143, 0.16);
+  --auth-green-glow: rgba(15, 159, 181, 0.12);
+  --tab-shadow: 0 4px 12px rgba(16, 60, 86, 0.1);
+  --shadow: 0 18px 45px rgba(16, 48, 70, 0.14);
+  --shadow-soft: 0 12px 30px rgba(16, 60, 86, 0.1);
+  --shadow-hover: 0 26px 60px rgba(11, 98, 143, 0.2);
   --motion-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #15101a;
-  --bg-rgb: 21, 16, 26;
-  --surface: #201728;
-  --surface-rgb: 32, 23, 40;
-  --surface-2: #2d2038;
-  --surface-3: #251a2e;
-  --sidebar: rgba(28, 20, 35, 0.88);
+  --bg: #071521;
+  --bg-rgb: 7, 21, 33;
+  --surface: #0f2638;
+  --surface-rgb: 15, 38, 56;
+  --surface-2: #16364a;
+  --surface-3: #102b3d;
+  --sidebar: rgba(8, 26, 40, 0.9);
   --ink: #fbf7ff;
   --muted: #c5b8cf;
-  --line: #43304f;
+  --line: #214d64;
   --line-strong: rgba(206, 164, 255, 0.3);
-  --blue: #c79aff;
-  --blue-rgb: 199, 154, 255;
-  --blue-2: #3a2550;
-  --teal: #9f8cff;
-  --teal-rgb: 159, 140, 255;
+  --blue: #83e2ff;
+  --blue-rgb: 131, 226, 255;
+  --blue-2: #123c52;
+  --teal: #70d9e8;
+  --teal-rgb: 112, 217, 232;
   --green: #82d7aa;
   --green-2: #173b2c;
   --coral: #f08c75;
@@ -58,16 +58,50 @@
   --gold: #e6c466;
   --gold-2: #493916;
   --primary-contrast: #07121a;
-  --auth-blue-glow: rgba(199, 154, 255, 0.16);
-  --auth-green-glow: rgba(159, 140, 255, 0.12);
+  --auth-blue-glow: rgba(40, 137, 190, 0.2);
+  --auth-green-glow: rgba(112, 217, 232, 0.14);
   --tab-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   --shadow: 0 20px 55px rgba(0, 0, 0, 0.38);
   --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.28);
-  --shadow-hover: 0 28px 70px rgba(176, 121, 255, 0.22);
+  --shadow-hover: 0 28px 70px rgba(52, 177, 224, 0.22);
 }
 
 * {
   box-sizing: border-box;
+}
+
+#plasmaLayer {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+
+#plasmaLayer canvas {
+  height: 100% !important;
+  inset: 0;
+  pointer-events: none;
+  position: absolute !important;
+  width: 100% !important;
+}
+
+#plasmaLayer > * {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.plasma-decoration {
+  pointer-events: none;
+  position: absolute !important;
+}
+
+#authGate,
+#appShell,
+.form-shell {
+  position: relative;
+  z-index: 1;
 }
 
 body {
@@ -227,9 +261,11 @@ button:disabled {
 }
 
 .tab.active {
-  background: var(--surface);
-  color: var(--blue);
-  box-shadow: var(--tab-shadow);
+  background-color: rgba(16, 74, 86, 0.78);
+  background-image: linear-gradient(120deg, rgba(114, 230, 208, 0.42), rgba(55, 143, 194, 0.42));
+  border: 1px solid rgba(132, 239, 226, 0.42);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 18px rgba(87, 225, 211, 0.16);
   transform: translateY(-1px);
 }
 
@@ -331,8 +367,8 @@ textarea {
 .icon-button {
   border: 1px solid transparent;
   border-radius: 8px;
-  min-height: 40px;
-  padding: 9px 14px;
+  min-height: 44px;
+  padding: 10px 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -340,6 +376,9 @@ textarea {
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
+  isolation: isolate;
+  position: relative;
+  transform-style: preserve-3d;
   transition:
     background-color 180ms var(--motion-standard),
     border-color 180ms var(--motion-standard),
@@ -352,20 +391,77 @@ textarea {
 .icon-button:hover,
 .sidebar-toggle:hover,
 .nav-item:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .button:active,
 .icon-button:active,
 .sidebar-toggle:active,
 .nav-item:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(2px) scale(0.98);
 }
 
 .icon-button {
-  width: 40px;
+  width: 44px;
   padding: 0;
-  flex: 0 0 40px;
+  flex: 0 0 44px;
+}
+
+@property --plasma-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:where(.auth-panel, .panel, .metric-card, .product-card, .table-card, .room-card, .form-card) {
+  isolation: isolate;
+  position: relative;
+}
+
+:where(.auth-panel, .panel, .metric-card, .product-card, .table-card, .room-card, .form-card)::before {
+  animation: plasmaContainerBorder 7.5s linear infinite;
+  background: conic-gradient(
+    from var(--plasma-angle),
+    rgba(196, 249, 255, 0.72),
+    rgba(70, 190, 220, 0.42),
+    rgba(33, 111, 163, 0.52),
+    rgba(139, 235, 246, 0.64),
+    rgba(196, 249, 255, 0.72)
+  );
+  border-radius: inherit;
+  content: "";
+  inset: -1px;
+  opacity: 0.58;
+  padding: 1px;
+  pointer-events: none;
+  position: absolute;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: 0;
+}
+
+.button::after,
+.icon-button::after {
+  animation: plasmaButtonBorder 4.2s linear infinite;
+  background: conic-gradient(
+    from var(--plasma-angle),
+    rgba(196, 249, 255, 0.96),
+    rgba(70, 190, 220, 0.86),
+    rgba(33, 111, 163, 0.9),
+    rgba(139, 235, 246, 0.92),
+    rgba(196, 249, 255, 0.96)
+  );
+  border-radius: inherit;
+  content: "";
+  inset: -1px;
+  padding: 1px;
+  pointer-events: none;
+  position: absolute;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: 0;
 }
 
 .button svg,
@@ -382,32 +478,73 @@ textarea {
 
 .button.primary,
 .icon-button.primary {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 42%),
-    var(--blue);
-  color: var(--primary-contrast);
-  box-shadow: 0 14px 28px rgba(var(--blue-rgb), 0.22);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent 42%), #a9f2f6;
+  border-color: rgba(193, 250, 255, 0.9);
+  color: #061a27;
+  box-shadow: 0 2px 0 rgba(38, 126, 157, 0.82), 0 10px 22px rgba(74, 152, 220, 0.2);
 }
 
 .button.secondary,
 .icon-button.secondary {
-  background: var(--green-2);
-  color: var(--green);
-  border-color: rgba(47, 125, 92, 0.2);
+  background: rgba(145, 224, 238, 0.2);
+  border-color: rgba(165, 236, 245, 0.72);
+  color: #dffbff;
+  box-shadow: 0 2px 0 rgba(37, 108, 137, 0.76), 0 8px 18px rgba(74, 181, 216, 0.12);
 }
 
 .button.danger,
 .icon-button.danger {
-  background: var(--coral-2);
-  color: var(--coral);
-  border-color: rgba(200, 82, 60, 0.2);
+  background-color: rgba(108, 35, 57, 0.78);
+  background-image: linear-gradient(120deg, rgba(255, 152, 141, 0.22), rgba(230, 82, 126, 0.5));
+  border-color: rgba(255, 157, 165, 0.54);
+  color: #ffd7d4;
+  box-shadow: 0 2px 0 rgba(92, 29, 48, 0.84), 0 8px 18px rgba(230, 82, 126, 0.16);
 }
 
 .button.ghost,
 .icon-button.ghost {
-  background: rgba(var(--surface-rgb), 0.72);
-  color: var(--blue);
-  border-color: var(--line);
+  background: rgba(145, 224, 238, 0.16);
+  color: #b9f3ff;
+  border-color: rgba(146, 226, 241, 0.58);
+}
+
+.button.secondary,
+.button.ghost,
+.button.danger,
+.icon-button.secondary,
+.icon-button.ghost,
+.icon-button.danger {
+  box-shadow: 0 2px 0 rgba(37, 108, 137, 0.76), 0 8px 18px rgba(74, 181, 216, 0.12);
+}
+
+.button.primary:hover,
+.button.secondary:hover,
+.button.ghost:hover,
+.icon-button.primary:hover,
+.icon-button.secondary:hover,
+.icon-button.ghost:hover {
+  border-color: rgba(179, 255, 239, 0.86);
+  box-shadow: 0 3px 0 rgba(37, 108, 137, 0.76), 0 14px 26px rgba(74, 181, 216, 0.2);
+}
+
+.button.primary:hover,
+.icon-button.primary:hover {
+  box-shadow: 0 3px 0 rgba(38, 126, 157, 0.82), 0 14px 28px rgba(74, 181, 216, 0.24);
+}
+
+.button:active::after,
+.icon-button:active::after {
+  filter: drop-shadow(0 0 8px rgba(154, 242, 250, 0.95));
+  opacity: 1;
+}
+
+.button.primary:active,
+.icon-button.primary:active,
+.button.secondary:active,
+.icon-button.secondary:active,
+.button.ghost:active,
+.icon-button.ghost:active {
+  box-shadow: 0 1px 0 rgba(37, 108, 137, 0.68), 0 0 24px rgba(127, 226, 238, 0.46);
 }
 
 .theme-toggle {
@@ -486,6 +623,21 @@ textarea {
   display: block;
 }
 
+.sidebar-brand > div strong,
+.sidebar-brand > div span {
+  font-family: "Arial Rounded MT Bold", "Cooper Black", "Trebuchet MS", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.sidebar-brand > div strong {
+  font-size: 1.04rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 12px rgba(131, 226, 255, 0.16);
+}
+
+.sidebar-brand > div span {
+  font-size: 0.78rem;
+}
+
 .sidebar-brand span,
 .user-chip span {
   color: var(--muted);
@@ -541,11 +693,11 @@ textarea {
 }
 
 .nav-item.active {
-  background:
-    linear-gradient(135deg, rgba(var(--blue-rgb), 0.13), rgba(var(--teal-rgb), 0.08)),
-    var(--blue-2);
-  color: var(--blue);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 10px 24px rgba(var(--blue-rgb), 0.1);
+  background-color: rgba(16, 74, 86, 0.48);
+  background-image: linear-gradient(120deg, rgba(114, 230, 208, 0.24), rgba(55, 143, 194, 0.28));
+  border: 1px solid rgba(132, 239, 226, 0.24);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 20px rgba(87, 225, 211, 0.12);
 }
 
 .nav-item.active::before {
@@ -721,7 +873,7 @@ textarea {
 .metric-card,
 .product-card,
 .table-card {
-  background: rgba(var(--surface-rgb), 0.9);
+  background: rgba(var(--surface-rgb), 0.7);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow-soft);
@@ -730,6 +882,23 @@ textarea {
     border-color 180ms var(--motion-standard),
     box-shadow 220ms var(--motion-standard),
     transform 220ms var(--motion-standard);
+}
+
+.app-shell .panel,
+.app-shell .metric-card,
+.app-shell .product-card,
+.app-shell .table-card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-shell .panel:hover,
+.app-shell .metric-card:hover,
+.app-shell .product-card:hover,
+.app-shell .table-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .panel:hover,
@@ -877,6 +1046,26 @@ textarea {
   }
 }
 
+@keyframes plasmaButtonBorder {
+  from {
+    --plasma-angle: 0deg;
+  }
+
+  to {
+    --plasma-angle: 360deg;
+  }
+}
+
+@keyframes plasmaContainerBorder {
+  from {
+    --plasma-angle: 0deg;
+  }
+
+  to {
+    --plasma-angle: 360deg;
+  }
+}
+
 .product-meta,
 .tag-row {
   display: flex;
@@ -916,6 +1105,184 @@ textarea {
   color: var(--ink);
   overflow-wrap: anywhere;
   text-align: right;
+}
+
+.rooms-experience {
+  --rooms-ink: #eff9ff;
+  --rooms-muted: #a8c1d2;
+  --rooms-line: rgba(130, 220, 230, 0.22);
+  --rooms-panel: rgba(8, 27, 43, 0.76);
+  --rooms-panel-strong: rgba(12, 38, 57, 0.9);
+  background-color: #071b2a;
+  background-image: linear-gradient(145deg, rgba(73, 202, 215, 0.12), transparent 38%), linear-gradient(320deg, rgba(133, 103, 244, 0.12), transparent 42%);
+  border: 1px solid rgba(145, 236, 237, 0.22);
+  border-radius: 18px 26px 18px 28px;
+  box-shadow: 0 24px 70px rgba(3, 14, 26, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--rooms-ink);
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+  padding: clamp(14px, 2.2vw, 24px);
+  position: relative;
+}
+
+.rooms-experience::before {
+  border: 1px solid rgba(119, 240, 220, 0.13);
+  border-radius: 50%;
+  content: "";
+  height: 280px;
+  pointer-events: none;
+  position: absolute;
+  right: -150px;
+  top: -160px;
+  width: 420px;
+}
+
+.rooms-experience .panel,
+.rooms-experience .room-alert,
+.rooms-experience .room-card,
+.rooms-experience .metric {
+  background: var(--rooms-panel);
+  border-color: var(--rooms-line);
+  box-shadow: 0 14px 34px rgba(2, 12, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  color: var(--rooms-ink);
+}
+
+.rooms-experience .room-alert span,
+.rooms-experience .room-card p,
+.rooms-experience .reservation-summary p,
+.rooms-experience .panel-heading p,
+.rooms-experience .metric dt,
+.rooms-experience .room-card dt {
+  color: var(--rooms-muted);
+}
+
+.rooms-experience .reservation-summary div,
+.rooms-experience .room-card dl div {
+  background: rgba(16, 52, 72, 0.5);
+  border-color: rgba(130, 220, 230, 0.16);
+}
+
+.rooms-experience .room-list-panel {
+  background: rgba(5, 21, 34, 0.58);
+  border-color: rgba(55, 143, 194, 0.32);
+}
+
+.rooms-experience .room-card {
+  border-left-width: 4px;
+  border-radius: 10px 16px 10px 14px;
+  min-width: 0;
+}
+
+.rooms-experience .room-card:hover {
+  border-color: rgba(133, 235, 225, 0.58);
+  box-shadow: 0 20px 44px rgba(4, 16, 29, 0.36), 0 0 24px rgba(77, 216, 212, 0.12);
+}
+
+.rooms-experience .tag {
+  background: rgba(55, 143, 194, 0.22);
+  border-color: rgba(146, 226, 241, 0.28);
+  color: #c2f6ff;
+}
+
+.rooms-experience .tag.good {
+  background: rgba(71, 202, 161, 0.18);
+  color: #8ef1c7;
+}
+
+.rooms-experience .tag.warn {
+  background: rgba(228, 177, 70, 0.18);
+  color: #ffdc86;
+}
+
+.rooms-experience .tag.bad {
+  background: rgba(239, 106, 122, 0.18);
+  color: #ffabb6;
+}
+
+.rooms-experience .button,
+.rooms-experience .icon-button,
+.form-page .button,
+.form-page .icon-button,
+.form-page .status-choice {
+  background: rgba(145, 224, 238, 0.16);
+  border-color: rgba(146, 226, 241, 0.58);
+  color: var(--rooms-ink);
+  box-shadow: var(--shadow-soft);
+  transition: border-color 180ms var(--motion-standard), box-shadow 180ms var(--motion-standard), color 180ms var(--motion-standard), transform 180ms var(--motion-standard);
+}
+
+.rooms-experience select {
+  background-color: rgba(17, 51, 70, 0.78);
+  border-color: rgba(135, 226, 231, 0.3);
+  color: var(--rooms-ink);
+}
+
+.rooms-experience .button:hover,
+.rooms-experience .icon-button:hover,
+.form-page .button:hover,
+.form-page .icon-button:hover,
+.form-page .status-choice:hover,
+.form-page .status-choice:focus-visible {
+  border-color: rgba(179, 255, 239, 0.86);
+  box-shadow: var(--shadow-hover);
+}
+
+.rooms-experience .button.primary,
+.rooms-experience .button.secondary:hover,
+.form-page .button.primary,
+.form-page .status-choice.selected {
+  background-color: #a9f2f6;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent 42%), #a9f2f6;
+  border-color: #c1faff;
+  color: #061a27;
+  box-shadow: 0 10px 22px rgba(74, 152, 220, 0.2);
+}
+
+.rooms-experience .button.ghost,
+.rooms-experience .icon-button.ghost,
+.form-page .button.ghost,
+.form-page .icon-button.ghost {
+  background: rgba(145, 224, 238, 0.16);
+  color: #c2f6ff;
+}
+
+.rooms-experience .button.danger,
+.rooms-experience .icon-button.danger,
+.form-page .button.danger,
+.form-page .icon-button.danger {
+  background-color: rgba(108, 35, 57, 0.78);
+  background-image: linear-gradient(120deg, rgba(255, 152, 141, 0.22), rgba(230, 82, 126, 0.5));
+  border-color: rgba(255, 157, 165, 0.54);
+  color: #ffd7d4;
+}
+
+.rooms-experience .room-timer {
+  align-items: center;
+  background: rgba(60, 206, 179, 0.11);
+  border: 1px solid rgba(102, 235, 213, 0.24);
+  border-radius: 8px 14px 8px 12px;
+  color: #a7f5dc;
+  display: flex;
+  gap: 8px;
+  padding: 9px 10px;
+}
+
+.rooms-experience .room-timer svg {
+  color: #72e6d0;
+  height: 17px;
+  width: 17px;
+}
+
+.rooms-experience .room-timer span {
+  color: var(--rooms-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.rooms-experience .room-timer strong {
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
 }
 
 .room-alert {
@@ -1569,6 +1936,24 @@ td.actions {
   gap: 14px;
 }
 
+.visibility-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.visibility-role-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.visibility-role-group h3,
+.visibility-grid h4 {
+  margin: 0;
+}
+
 .visibility-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1586,6 +1971,25 @@ td.actions {
 .visibility-grid h3 {
   margin: 0;
   font-size: 0.96rem;
+}
+
+.visibility-grid h4 {
+  font-size: 0.9rem;
+}
+
+.visibility-grid section > p,
+.checkbox-line small {
+  color: var(--muted);
+}
+
+.visibility-grid section > p {
+  margin: -2px 0 2px;
+}
+
+.checkbox-line small {
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .password-inline {
@@ -1671,6 +2075,7 @@ td.actions {
 
   .sidebar-toggle.icon-button {
     width: auto;
+    min-height: 48px;
     min-width: 96px;
     padding: 9px 12px;
     flex-basis: auto;
@@ -1766,4 +2171,150 @@ td.actions {
   .user-menu .button {
     flex: 1;
   }
+}
+
+/* Readability and light-theme presentation. */
+body {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 1rem;
+}
+
+label,
+.checkbox-line {
+  font-size: 0.94rem;
+}
+
+.topbar h1 {
+  font-size: clamp(1.55rem, 2.5vw, 2.1rem);
+  line-height: 1.15;
+}
+
+.topbar p,
+.panel-heading p,
+.room-card p,
+.reservation-summary p,
+.site-footer,
+.message,
+.toast {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.metric-card span,
+.metric dt,
+.table-card th,
+.field-chip-list dt,
+.field-chip-list dd {
+  font-size: 0.86rem;
+}
+
+.metric-card strong {
+  font-size: 2rem;
+}
+
+[data-theme="light"] .button.secondary,
+[data-theme="light"] .icon-button.secondary {
+  color: #0b628f;
+  background: rgba(145, 224, 238, 0.3);
+  border-color: rgba(15, 159, 181, 0.45);
+}
+
+[data-theme="light"] .button.ghost,
+[data-theme="light"] .icon-button.ghost {
+  color: #0b628f;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 99, 143, 0.3);
+}
+
+[data-theme="light"] .button.danger,
+[data-theme="light"] .icon-button.danger {
+  color: #8d2f26;
+  background: rgba(255, 229, 220, 0.92);
+  border-color: rgba(200, 82, 60, 0.42);
+}
+
+[data-theme="light"] .tab.active {
+  background: rgba(145, 224, 238, 0.34);
+  border-color: rgba(15, 159, 181, 0.36);
+  color: var(--blue);
+}
+
+[data-theme="light"] .rooms-experience {
+  --rooms-ink: #102334;
+  --rooms-muted: #587082;
+  --rooms-line: rgba(15, 99, 143, 0.2);
+  --rooms-panel: rgba(255, 255, 255, 0.88);
+  --rooms-panel-strong: rgba(255, 255, 255, 0.96);
+  background-color: #eaf5f9;
+  background-image: linear-gradient(145deg, rgba(73, 202, 215, 0.14), transparent 38%), linear-gradient(320deg, rgba(11, 98, 143, 0.1), transparent 42%);
+  border-color: rgba(15, 159, 181, 0.28);
+  box-shadow: 0 24px 70px rgba(16, 48, 70, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+[data-theme="light"] .rooms-experience .panel,
+[data-theme="light"] .rooms-experience .room-alert,
+[data-theme="light"] .rooms-experience .room-card,
+[data-theme="light"] .rooms-experience .metric {
+  box-shadow: 0 14px 34px rgba(16, 60, 86, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+[data-theme="light"] .rooms-experience .reservation-summary div,
+[data-theme="light"] .rooms-experience .room-card dl div {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(15, 99, 143, 0.14);
+}
+
+[data-theme="light"] .rooms-experience .room-list-panel {
+  background: rgba(255, 255, 255, 0.68);
+  border-color: rgba(15, 99, 143, 0.22);
+}
+
+[data-theme="light"] .rooms-experience select {
+  background-color: rgba(255, 255, 255, 0.94);
+  border-color: rgba(15, 99, 143, 0.25);
+  color: var(--rooms-ink);
+}
+
+[data-theme="light"] .rooms-experience .button.ghost,
+[data-theme="light"] .rooms-experience .icon-button.ghost {
+  color: var(--blue);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+[data-theme="light"] .rooms-experience .tag {
+  background: rgba(145, 224, 238, 0.26);
+  border-color: rgba(15, 159, 181, 0.28);
+  color: #0b628f;
+}
+
+[data-theme="light"] .rooms-experience .tag.good {
+  background: var(--green-2);
+  color: #236247;
+}
+
+[data-theme="light"] .rooms-experience .tag.warn {
+  background: var(--gold-2);
+  color: #79500f;
+}
+
+[data-theme="light"] .rooms-experience .tag.bad {
+  background: var(--coral-2);
+  color: #8d2f26;
+}
+
+[data-theme="light"] .rooms-experience .room-timer {
+  background: rgba(222, 242, 232, 0.82);
+  border-color: rgba(47, 125, 92, 0.24);
+  color: #236247;
+}
+
+[data-theme="light"] .rooms-experience .room-timer svg {
+  color: #2f7d5c;
 }

@@ -3,6 +3,7 @@ using GenericInventory.Employees.Entities;
 using GenericInventory.Movements.Entities;
 using GenericInventory.Products.Entities;
 using GenericInventory.Reminders.Entities;
+using GenericInventory.Rooms.Entities;
 
 namespace GenericInventory.Data;
 
@@ -17,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<Movement> Movements => Set<Movement>();
     public DbSet<ReminderRule> ReminderRules => Set<ReminderRule>();
     public DbSet<PowerAutomateReminderSettings> PowerAutomateReminderSettings => Set<PowerAutomateReminderSettings>();
+    public DbSet<Bed> Beds => Set<Bed>();
+    public DbSet<BedHistory> BedHistory => Set<BedHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +69,40 @@ public class AppDbContext : DbContext
             entity.Property(settings => settings.ManualWebhookUrl).HasMaxLength(4096);
             entity.Property(settings => settings.SharedSecret).HasMaxLength(512);
             entity.Property(settings => settings.UpdatedBy).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<Bed>(entity =>
+        {
+            entity.HasKey(bed => bed.Id);
+            entity.HasIndex(bed => bed.Label).IsUnique();
+            entity.Property(bed => bed.Id).HasMaxLength(80);
+            entity.Property(bed => bed.Label).HasMaxLength(80);
+            entity.Property(bed => bed.Category).HasMaxLength(80);
+            entity.Property(bed => bed.Status).HasMaxLength(32);
+            entity.Property(bed => bed.GuestName).HasMaxLength(120);
+            entity.Property(bed => bed.GuestCode).HasMaxLength(40);
+            entity.Property(bed => bed.Cpf).HasMaxLength(14);
+            entity.Property(bed => bed.Phone).HasMaxLength(32);
+            entity.Property(bed => bed.EmergencyContact).HasMaxLength(120);
+            entity.Property(bed => bed.EmergencyPhone).HasMaxLength(32);
+            entity.Property(bed => bed.BloodType).HasMaxLength(8);
+            entity.Property(bed => bed.CheckIn).HasMaxLength(10);
+            entity.Property(bed => bed.CheckOut).HasMaxLength(10);
+            entity.Property(bed => bed.ActualCheckOut).HasMaxLength(10);
+            entity.Property(bed => bed.Note).HasMaxLength(240);
+            entity.Property(bed => bed.Operator).HasMaxLength(120);
+        });
+
+        modelBuilder.Entity<BedHistory>(entity =>
+        {
+            entity.HasIndex(history => history.Date);
+            entity.Property(history => history.BedId).HasMaxLength(80);
+            entity.Property(history => history.AreaName).HasMaxLength(80);
+            entity.Property(history => history.RoomLabel).HasMaxLength(80);
+            entity.Property(history => history.Status).HasMaxLength(32);
+            entity.Property(history => history.GuestCode).HasMaxLength(40);
+            entity.Property(history => history.Note).HasMaxLength(240);
+            entity.Property(history => history.Operator).HasMaxLength(120);
         });
     }
 }

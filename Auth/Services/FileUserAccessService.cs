@@ -16,11 +16,6 @@ namespace GenericInventory.Auth.Services;
 public class FileUserAccessService : IUserAccessService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private const string DeveloperEmail = "dev@email.com";
-    private const string DeveloperName = "Developer";
-    private const string DeveloperPasswordHash =
-        "v1:120000:QhWk/kPLEhQWf4ZNqzeLlg==:uy/wA981tCya/Ku261ArCZRbPeJTMiwxXrR5mesxHcQ=";
-
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _storePath;
     private readonly AuthOptions _options;
@@ -71,7 +66,13 @@ public class FileUserAccessService : IUserAccessService
         {
             var users = await LoadUsersAsync(cancellationToken);
             var admin = FindByEmail(users, email);
-            var developer = FindByEmail(users, DeveloperEmail);
+            var developerOptions = bootstrap.Developer;
+            var developerEmail = NormalizeEmail(developerOptions.Email);
+            var hasDeveloperPasswordHash = TryReadSeededPasswordHash(
+                developerOptions.PasswordHash,
+                "Auth:Bootstrap:Developer:PasswordHash",
+                out var developerPasswordHash);
+            var developer = FindByEmail(users, developerEmail);
 
             if (admin == null)
             {
@@ -117,7 +118,10 @@ public class FileUserAccessService : IUserAccessService
                 _logger.LogInformation("Conta administradora de bootstrap restaurada para {Email}.", email);
             }
 
-            if (admin.MustDefinePassword && TryReadSeededPasswordHash(bootstrap, out var seededHash))
+            if (admin.MustDefinePassword && TryReadSeededPasswordHash(
+                bootstrap.PasswordHash,
+                "Auth:Bootstrap:PasswordHash",
+                out var seededHash))
             {
                 // Senha inicial vinda do cofre de segredos do ambiente. Dispensa o link por e-mail.
                 admin.PasswordHash = seededHash;
@@ -134,14 +138,14 @@ public class FileUserAccessService : IUserAccessService
                 notifyUser = admin;
             }
 
-            if (developer == null)
+            if (developer == null && developerOptions.Enabled && hasDeveloperPasswordHash)
             {
                 developer = new UserAccessRecord
                 {
                     Id = Guid.NewGuid().ToString("N"),
-                    Name = DeveloperName,
-                    Email = DeveloperEmail,
-                    PasswordHash = DeveloperPasswordHash,
+                    Name = string.IsNullOrWhiteSpace(developerOptions.Name) ? "Developer" : developerOptions.Name.Trim(),
+                    Email = developerEmail,
+                    PasswordHash = developerPasswordHash,
                     Role = AccessRoleCatalog.Developer,
                     Status = AccessStatus.Approved,
                     Origin = AccessOrigin.Bootstrap,
@@ -151,9 +155,9 @@ public class FileUserAccessService : IUserAccessService
                 };
 
                 users.Add(developer);
-                _logger.LogInformation("Conta Developer criada pelo bootstrap para {Email}.", DeveloperEmail);
+                _logger.LogInformation("Conta Developer criada pelo bootstrap para {Email}.", developerEmail);
             }
-            else
+            else if (developer != null)
             {
                 var developerRepaired = false;
                 if (!AccessRoleCatalog.IsDeveloper(developer.Role))
@@ -172,9 +176,9 @@ public class FileUserAccessService : IUserAccessService
                     developerRepaired = true;
                 }
 
-                if (!string.Equals(developer.PasswordHash, DeveloperPasswordHash, StringComparison.Ordinal))
+                if (developer.MustDefinePassword && hasDeveloperPasswordHash)
                 {
-                    developer.PasswordHash = DeveloperPasswordHash;
+                    developer.PasswordHash = developerPasswordHash;
                     developer.PasswordTokenHash = string.Empty;
                     developer.PasswordTokenCreatedAt = null;
                     developer.PasswordTokenUsedAt = null;
@@ -184,8 +188,14 @@ public class FileUserAccessService : IUserAccessService
                 if (developerRepaired)
                 {
                     developer.Touch(AccessOrigin.Bootstrap);
-                    _logger.LogInformation("Conta Developer restaurada para {Email}.", DeveloperEmail);
+                    _logger.LogInformation("Conta Developer restaurada para {Email}.", developer.Email);
                 }
+            }
+
+            if (developer == null && developerOptions.Enabled && !hasDeveloperPasswordHash)
+            {
+                _logger.LogWarning(
+                    "Conta Developer não foi criada: configure um hash em Auth:Bootstrap:Developer:PasswordHash.");
             }
 
             await SaveUsersAsync(users, cancellationToken);
@@ -862,9 +872,12 @@ public class FileUserAccessService : IUserAccessService
     /// Le a senha inicial da configuracao. Exige o formato de hash do PasswordHashingService:
     /// senha em texto puro e recusada, para que o valor no cofre nunca seja a credencial em si.
     /// </summary>
-    private bool TryReadSeededPasswordHash(AccessBootstrapOptions bootstrap, out string passwordHash)
+    private bool TryReadSeededPasswordHash(
+        string? configuredHash,
+        string settingName,
+        out string passwordHash)
     {
-        passwordHash = bootstrap.PasswordHash.Trim();
+        passwordHash = configuredHash?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(passwordHash))
         {
             return false;
@@ -878,7 +891,8 @@ public class FileUserAccessService : IUserAccessService
 
         // Nunca registra o valor recebido em log: ele pode ser uma senha digitada por engano.
         _logger.LogWarning(
-            "Auth:Bootstrap:PasswordHash ignorado: formato inválido. Esperado v1:iterações:salt:hash.");
+            "{SettingName} ignorado: formato inválido. Esperado v1:iterações:salt:hash.",
+            settingName);
         passwordHash = string.Empty;
         return false;
     }

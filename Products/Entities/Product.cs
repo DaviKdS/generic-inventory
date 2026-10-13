@@ -11,6 +11,5 @@ public class Product
     public string ImagePath { get; set; } = string.Empty;
     public string LegacyImageUrl { get; set; } = string.Empty;
     public string CustomFieldsJson { get; set; } = string.Empty;
-    public string Catalyst { get; set; } = string.Empty;
     public string LegacyImportId { get; set; } = string.Empty;
 }

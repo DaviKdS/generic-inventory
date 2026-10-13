@@ -1,15 +1,16 @@
-const CACHE_NAME = "generic-inventory-v26";
+const CACHE_NAME = "generic-inventory-v43-globe-bed-icon";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/form",
   "/form.html",
-  "/form.css",
-  "/form.js",
-  "/styles.css",
-  "/app.js",
+  "/form.css?v=20261013-standard-blue",
+  "/form.js?v=20261013-neon-layout",
+  "/styles.css?v=20261013-light-theme-type",
+  "/app.js?v=20261013-blue-buttons",
+  "/plasma-visual.js?v=20261013-plasma-motion",
   "/manifest.webmanifest",
-  "/icons/icon.svg"
+  "/icons/icon.svg?v=20261013-globe-bed"
 ];
 
 self.addEventListener("install", (event) => {

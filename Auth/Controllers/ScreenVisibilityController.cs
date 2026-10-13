@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GenericInventory.Auth.AccessControl;
@@ -17,19 +18,35 @@ public class ScreenVisibilityController : ControllerBase
         _settingsService = settingsService;
     }
 
-    [Authorize]
+    [Authorize(Policy = AccessPermissions.AccessManage)]
     [HttpGet]
     public async Task<ActionResult<ScreenVisibilityDto>> Get(CancellationToken cancellationToken)
     {
         return Ok(await _settingsService.GetAsync(cancellationToken));
     }
 
-    [Authorize(Policy = AccessPermissions.CatalogImport)]
+    [Authorize]
+    [HttpGet("current")]
+    public async Task<ActionResult<ScreenVisibilityDto>> GetCurrent(CancellationToken cancellationToken)
+    {
+        var actingRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        return Ok(await _settingsService.GetForRoleAsync(actingRole, cancellationToken));
+    }
+
+    [Authorize(Policy = AccessPermissions.AccessManage)]
     [HttpPut]
     public async Task<ActionResult<ScreenVisibilityDto>> Save(
         [FromBody] ScreenVisibilityFormDto form,
         CancellationToken cancellationToken)
     {
-        return Ok(await _settingsService.SaveAsync(form, cancellationToken));
+        try
+        {
+            var actingRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            return Ok(await _settingsService.SaveAsync(form, actingRole, cancellationToken));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 }

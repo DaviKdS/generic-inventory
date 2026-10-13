@@ -7,7 +7,7 @@ namespace GenericInventory.Auth.Options;
 /// </summary>
 public class AccessBootstrapOptions
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
 
     public string Name { get; set; } = "Administrador";
 
@@ -21,6 +21,24 @@ public class AccessBootstrapOptions
     /// cofre de segredos do ambiente, nunca do repositorio.
     /// Só é aplicada quando a conta ainda está sem senha: nunca sobrescreve uma existente.
     /// </summary>
+    public string PasswordHash { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Provisionamento opcional do Developer. Permanece desativado por padrão e só deve
+    /// ser preenchido por variável de ambiente ou cofre de segredos.
+    /// </summary>
+    public DeveloperBootstrapOptions Developer { get; set; } = new();
+}
+
+public class DeveloperBootstrapOptions
+{
+    public bool Enabled { get; set; }
+
+    public string Name { get; set; } = "Developer";
+
+    public string Email { get; set; } = "dev@email.com";
+
+    /// <summary>Hash v1 da senha, nunca a senha em texto puro.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 }
 

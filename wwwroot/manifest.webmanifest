@@ -6,11 +6,11 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f6f7f4",
-  "theme_color": "#f6f7f4",
+  "background_color": "#f4f9fc",
+  "theme_color": "#f4f9fc",
   "icons": [
     {
-      "src": "/icons/icon.svg",
+      "src": "/icons/icon.svg?v=20261013-globe-bed",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

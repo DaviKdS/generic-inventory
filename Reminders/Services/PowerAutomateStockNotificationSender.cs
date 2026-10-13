@@ -165,7 +165,6 @@ public class PowerAutomateStockNotificationSender : IStockNotificationSender
                     product.CurrentStock,
                     product.MinimumStock,
                     product.SaleValue,
-                    product.Catalyst,
                     product.ImagePath,
                     product.LegacyImageUrl,
                     threshold = request.Rule.UseProductMinimum

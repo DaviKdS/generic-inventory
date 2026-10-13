@@ -1,7 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Controle de Estoque">
-  <rect width="512" height="512" rx="96" fill="#f6f7f4"/>
-  <path d="M128 158h256v236H128z" fill="#1f6f5b"/>
-  <path d="M160 126h192l32 32H128z" fill="#2f8f73"/>
-  <path d="M174 210h164v42H174zm0 74h164v42H174z" fill="#f6f7f4"/>
-  <path d="M128 158h256v236H128z" fill="none" stroke="#143c33" stroke-width="20" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Globo com cama</title>
+  <desc id="desc">Ícone azul de um globo com uma cama no centro.</desc>
+  <defs>
+    <linearGradient id="background" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f4fcff"/>
+      <stop offset="1" stop-color="#a9e8f1"/>
+    </linearGradient>
+    <linearGradient id="globe" x1="112" y1="84" x2="400" y2="424" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#178ca8"/>
+      <stop offset="1" stop-color="#07527c"/>
+    </linearGradient>
+    <clipPath id="globeClip">
+      <circle cx="256" cy="238" r="166"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="104" fill="url(#background)"/>
+  <circle cx="256" cy="238" r="178" fill="url(#globe)" stroke="#062f4b" stroke-width="16"/>
+
+  <g clip-path="url(#globeClip)" fill="none" stroke="#a9f1f4" stroke-linecap="round" opacity=".72">
+    <path d="M90 238h332" stroke-width="12"/>
+    <path d="M112 164c84 44 204 44 288 0M112 312c84-44 204-44 288 0" stroke-width="10"/>
+    <path d="M256 72c-56 48-84 104-84 166s28 118 84 166M256 72c56 48 84 104 84 166s-28 118-84 166" stroke-width="10"/>
+  </g>
+
+  <g fill="#f8feff" stroke="#062f4b" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M132 244v112h28v-48h192v48h28V266c0-12-10-22-22-22h-78c-14 0-25 8-30 20-6-12-18-20-32-20h-58v-28h-28v28h-2z" stroke-width="13"/>
+    <path d="M160 272h68c13 0 24 11 24 24v12h-92v-36z" fill="#b8eef3" stroke-width="10"/>
+    <path d="M160 308h192" fill="none" stroke-width="11"/>
+    <path d="M154 356v28M358 356v28" fill="none" stroke-width="13"/>
+  </g>
+
+  <circle cx="386" cy="112" r="22" fill="#a9f2f6" stroke="#062f4b" stroke-width="10"/>
+  <path d="M375 112h22M386 101v22" stroke="#062f4b" stroke-width="7" stroke-linecap="round"/>
 </svg>

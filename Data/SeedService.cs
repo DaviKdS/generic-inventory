@@ -118,7 +118,6 @@ public class SeedService
                 SaleValue = ParseDecimal(row.Get("ValorVenda")),
                 LegacyImageUrl = string.Empty,
                 ImagePath = string.Empty,
-                Catalyst = row.Get("Catalisador"),
                 LegacyImportId = row.Get("__ImportId__")
             });
         }
@@ -157,7 +156,6 @@ public class SeedService
                 EmployeeName = row.Get("NOME"),
                 EmployeeSection = row.Get("SEÇÃO", "SECAO", "SE��O"),
                 EmployeeRegistration = row.Get("MATRÍCULA", "MATRICULA", "MATR�CULA"),
-                Catalyst = row.Get("Catalisador"),
                 LegacyImportId = row.Get("__ImportId__")
             });
         }

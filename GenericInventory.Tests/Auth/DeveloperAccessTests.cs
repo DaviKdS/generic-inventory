@@ -15,7 +15,23 @@ namespace GenericInventory.Tests.Auth;
 public class DeveloperAccessTests
 {
     [Fact]
-    public async Task Bootstrap_ShouldRestoreDeveloperDefaultPassword()
+    public async Task Bootstrap_ShouldNotCreateDeveloperWithoutExplicitConfiguration()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"generic-inventory-auth-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var storePath = Path.Combine(root, "auth-users.json");
+
+        var service = CreateService(root, storePath);
+        await service.EnsureBootstrapAdminAsync();
+
+        var users = JsonSerializer.Deserialize<List<UserAccessRecord>>(await File.ReadAllTextAsync(storePath));
+
+        Assert.NotNull(users);
+        Assert.DoesNotContain(users, user => string.Equals(user.Email, "dev@email.com", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Bootstrap_ShouldPreserveExistingDeveloperPassword()
     {
         var root = Path.Combine(Path.GetTempPath(), $"generic-inventory-auth-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -42,13 +58,21 @@ public class DeveloperAccessTests
         var login = await service.ValidateLoginAsync(new LoginRequestDto
         {
             Email = "dev@email.com",
-            Password = "191220023"
+            Password = "senha-antiga"
         });
 
         Assert.NotNull(login);
         Assert.Equal(AccessRoleCatalog.Developer, login.Role);
         Assert.Equal(AccessStatus.Approved, login.Status);
         Assert.False(login.MustDefinePassword);
+
+        var oldPasswordLogin = await service.ValidateLoginAsync(new LoginRequestDto
+        {
+            Email = "dev@email.com",
+            Password = "191220023"
+        });
+
+        Assert.Null(oldPasswordLogin);
     }
 
     [Fact]

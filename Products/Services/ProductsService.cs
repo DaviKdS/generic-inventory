@@ -105,7 +105,6 @@ public class ProductsService
         product.ImagePath = form.ImagePath.Trim();
         product.LegacyImageUrl = form.LegacyImageUrl.Trim();
         product.CustomFieldsJson = JsonSerializer.Serialize(NormalizeFields(form.CustomFields));
-        product.Catalyst = string.Empty;
     }
 
     private static IReadOnlyList<ProductFieldDto> NormalizeFields(IEnumerable<ProductFieldDto>? fields)

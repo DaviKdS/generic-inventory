@@ -13,6 +13,7 @@ using GenericInventory.Employees.Services;
 using GenericInventory.Movements.Services;
 using GenericInventory.Products.Services;
 using GenericInventory.Reminders.Services;
+using GenericInventory.Rooms.Services;
 
 Environment.SetEnvironmentVariable("DOTNET_hostBuilder:reloadConfigOnChange", "false");
 
@@ -44,7 +45,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = cookieName;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
         options.SlidingExpiration = true;
         options.LoginPath = "/";
         options.AccessDeniedPath = "/";
@@ -133,6 +136,7 @@ builder.Services.AddScoped<ProductsService>();
 builder.Services.AddScoped<CatalogImportService>();
 builder.Services.AddScoped<EmployeesService>();
 builder.Services.AddScoped<StockReminderService>();
+builder.Services.AddScoped<BedReservationsService>();
 builder.Services.AddScoped<PowerAutomateReminderSettingsService>();
 builder.Services.AddScoped<MovementsService>();
 builder.Services.AddScoped<SmtpStockNotificationSender>();
@@ -146,6 +150,7 @@ if (reminderOptions.SchedulerEnabled)
 }
 
 var swaggerServerList = builder.Configuration["SwaggerServersList"];
+var swaggerEnabled = builder.Configuration.GetValue("SwaggerEnabled", builder.Environment.IsDevelopment());
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -170,6 +175,20 @@ var app = builder.Build();
 await app.EnsureDatabaseAsync();
 app.EnsureAccessBootstrap();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://esm.sh https://unpkg.com; " +
+        "style-src 'self' 'unsafe-inline'; connect-src 'self' https://esm.sh https://unpkg.com; " +
+        "img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:";
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -179,18 +198,22 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseSwagger(option =>
+if (swaggerEnabled)
 {
-    option.RouteTemplate = "api/{documentName}/swagger.json";
-});
+    app.UseSwagger(option =>
+    {
+        option.RouteTemplate = "api/{documentName}/swagger.json";
+    });
 
-app.UseSwaggerUI(option =>
-{
-    option.RoutePrefix = "api";
-});
+    app.UseSwaggerUI(option =>
+    {
+        option.RoutePrefix = "api";
+    });
+}
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 

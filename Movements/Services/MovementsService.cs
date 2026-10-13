@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using GenericInventory.Data;
 using GenericInventory.Employees.Entities;
 using GenericInventory.Movements.Dtos;
@@ -49,25 +50,32 @@ public class MovementsService
             throw new InvalidOperationException("A quantidade deve ser um número entre 1 e 1000.");
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var product = await _db.Products.FirstOrDefaultAsync(item => item.Code == request.ProductCode.Trim(), cancellationToken)
             ?? throw new KeyNotFoundException("Produto não encontrado.");
 
-        if (type == StockOut && request.Quantity > product.CurrentStock)
+        var rowsAffected = type == StockIn
+            ? await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""UPDATE "Products" SET "CurrentStock" = "CurrentStock" + {request.Quantity} WHERE "Id" = {product.Id}""",
+                cancellationToken)
+            : await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""UPDATE "Products" SET "CurrentStock" = "CurrentStock" - {request.Quantity} WHERE "Id" = {product.Id} AND "CurrentStock" >= {request.Quantity}""",
+                cancellationToken);
+
+        if (rowsAffected == 0)
         {
             throw new InvalidOperationException("Estoque insuficiente para esta saída.");
         }
 
+        await _db.Entry(product).ReloadAsync(cancellationToken);
         var employee = request.EmployeeId is > 0
             ? await _db.Employees.FirstOrDefaultAsync(item => item.Id == request.EmployeeId, cancellationToken)
             : null;
 
         var movement = BuildMovement(type, request, product, employee);
-        product.CurrentStock = type == StockIn
-            ? product.CurrentStock + request.Quantity
-            : product.CurrentStock - request.Quantity;
-
         _db.Movements.Add(movement);
         await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         await _reminderService.SendMovementAlertsAsync(product, cancellationToken);
         return MovementDto.FromEntity(movement);
     }
@@ -92,8 +100,7 @@ public class MovementsService
             EmployeeId = employee?.Id,
             EmployeeName = employeeName,
             EmployeeSection = employeeSection,
-            EmployeeRegistration = employeeRegistration,
-            Catalyst = string.Empty
+            EmployeeRegistration = employeeRegistration
         };
     }
 }

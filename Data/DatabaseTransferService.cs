@@ -8,6 +8,8 @@ public sealed class DatabaseTransferService
 {
     private const string DatabaseEntryName = "database.db";
     private const string AuthEntryName = "auth-users.json";
+    private const string ScreenVisibilityEntryName = "screen-visibility.json";
+    private const string UploadsEntryPrefix = "uploads/";
     private readonly IConfiguration _configuration;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<DatabaseTransferService> _logger;
@@ -26,6 +28,8 @@ public sealed class DatabaseTransferService
     {
         var databasePath = GetDatabasePath();
         var authPath = GetAuthPath();
+        var screenVisibilityPath = GetScreenVisibilityPath();
+        var uploadsPath = GetUploadsPath();
         if (!File.Exists(databasePath))
         {
             throw new InvalidOperationException("O banco de dados ainda não foi criado.");
@@ -42,6 +46,16 @@ public sealed class DatabaseTransferService
                 if (File.Exists(authPath))
                 {
                     await AddFileAsync(archive, AuthEntryName, authPath, cancellationToken);
+                }
+
+                if (File.Exists(screenVisibilityPath))
+                {
+                    await AddFileAsync(archive, ScreenVisibilityEntryName, screenVisibilityPath, cancellationToken);
+                }
+
+                if (Directory.Exists(uploadsPath))
+                {
+                    await AddDirectoryAsync(archive, uploadsPath, UploadsEntryPrefix, cancellationToken);
                 }
 
                 var manifest = archive.CreateEntry("manifest.json");
@@ -99,6 +113,18 @@ public sealed class DatabaseTransferService
                 await using var authStream = authEntry.Open();
                 await authStream.CopyToAsync(authFile, cancellationToken);
             }
+
+            var screenVisibilityEntry = archive.GetEntry(ScreenVisibilityEntryName);
+            if (screenVisibilityEntry != null)
+            {
+                var screenVisibilityPath = GetScreenVisibilityPath();
+                Directory.CreateDirectory(Path.GetDirectoryName(screenVisibilityPath)!);
+                await using var visibilityFile = File.Create(screenVisibilityPath);
+                await using var visibilityStream = screenVisibilityEntry.Open();
+                await visibilityStream.CopyToAsync(visibilityFile, cancellationToken);
+            }
+
+            await RestoreUploadsAsync(archive, cancellationToken);
         }
         finally
         {
@@ -159,6 +185,16 @@ public sealed class DatabaseTransferService
         return ResolvePath(configuredPath);
     }
 
+    private string GetScreenVisibilityPath()
+    {
+        return ResolvePath("App_Data/screen-visibility.json");
+    }
+
+    private string GetUploadsPath()
+    {
+        return Path.Combine(_environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot"), "uploads");
+    }
+
     private string ResolvePath(string path)
     {
         return Path.IsPathRooted(path) ? path : Path.Combine(_environment.ContentRootPath, path);
@@ -170,5 +206,43 @@ public sealed class DatabaseTransferService
         await using var target = entry.Open();
         await using var source = File.OpenRead(path);
         await source.CopyToAsync(target, cancellationToken);
+    }
+
+    private static async Task AddDirectoryAsync(
+        ZipArchive archive,
+        string directory,
+        string entryPrefix,
+        CancellationToken cancellationToken)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(directory, file).Replace('\\', '/');
+            await AddFileAsync(archive, $"{entryPrefix}{relative}", file, cancellationToken);
+        }
+    }
+
+    private async Task RestoreUploadsAsync(ZipArchive archive, CancellationToken cancellationToken)
+    {
+        var uploadsPath = GetUploadsPath();
+        foreach (var entry in archive.Entries.Where(entry => entry.FullName.StartsWith(UploadsEntryPrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            var relative = entry.FullName[UploadsEntryPrefix.Length..];
+            if (string.IsNullOrWhiteSpace(relative) || relative.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+            {
+                continue;
+            }
+
+            var outputPath = Path.GetFullPath(Path.Combine(uploadsPath, relative.Replace('/', Path.DirectorySeparatorChar)));
+            var rootPath = Path.GetFullPath(uploadsPath);
+            if (!outputPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+            await using var output = File.Create(outputPath);
+            await using var input = entry.Open();
+            await input.CopyToAsync(output, cancellationToken);
+        }
     }
 }

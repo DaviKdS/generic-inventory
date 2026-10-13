@@ -4,27 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Controle de Estoque</title>
-  <meta name="theme-color" content="#f6f7f4">
+  <meta name="theme-color" content="#f4f9fc">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="application-name" content="Estoque">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icons/icon.svg?v=20261013-globe-bed" type="image/svg+xml">
   <script>
     (() => {
       try {
         const storedTheme = localStorage.getItem("generic-inventory.theme");
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const systemTheme = "light";
         document.documentElement.dataset.theme = storedTheme || systemTheme;
       } catch {
         document.documentElement.dataset.theme = "light";
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20261013-light-theme-type">
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+        "react-dom": "https://esm.sh/react-dom@18.3.1",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
+      }
+    }
+  </script>
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script defer src="/app.js"></script>
+  <script defer src="/app.js?v=20261013-blue-buttons"></script>
+  <script type="module" src="/plasma-visual.js?v=20261013-plasma-motion"></script>
 </head>
 <body>
+  <div id="plasmaLayer" aria-hidden="true"></div>
   <main id="authGate" class="auth-gate">
     <section class="auth-panel">
       <div class="auth-brand-row">
@@ -99,7 +111,7 @@
         <strong class="brand-mark compact" aria-label="Controle de Estoque">GI</strong>
         <div>
           <strong>Estoque</strong>
-          <span>Controle geral</span>
+          <span>Controle Geral</span>
         </div>
         <button id="sidebarToggle" class="icon-button ghost sidebar-toggle" type="button" aria-label="Recolher menu" title="Recolher menu">
           <i data-lucide="panel-left-close"></i>

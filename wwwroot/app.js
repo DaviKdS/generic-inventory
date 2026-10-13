@@ -24,12 +24,13 @@
     reminderDelivery: null,
     powerAutomateSettings: null,
     catalogImportPreview: null,
-    screenVisibility: { hiddenScreensByRole: { admin: [], standard: [] } },
+    screenVisibility: defaultScreenVisibility(),
     access: { catalog: null, users: [], approvals: [], approvalFlowSettings: null },
     passwordLinkResult: null,
     drafts: { product: null, employee: null, reminder: null },
     pendingPassword: null,
     sessionSyncTimer: null,
+    roomTimerInterval: null,
     sidebarCollapsed: readStoredBoolean("generic-inventory.sidebarCollapsed"),
     language: "pt",
     theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light"
@@ -40,7 +41,7 @@
     { id: "out", label: { pt: "Saída", en: "Stock Out" }, icon: "log-out", permission: permissions.stockMove, title: { pt: "Saída", en: "Stock Out" }, subtitle: { pt: "Registre baixa de estoque.", en: "Register inventory withdrawals." } },
     { id: "in", label: { pt: "Entrada", en: "Stock In" }, icon: "log-in", permission: permissions.stockMove, title: { pt: "Entrada", en: "Stock In" }, subtitle: { pt: "Registre reposição de estoque.", en: "Register inventory replenishment." } },
     { id: "movements", label: { pt: "Movimentações", en: "Movements" }, icon: "list-filter", permission: permissions.stockRead, title: { pt: "Movimentações", en: "Movements" }, subtitle: { pt: "Histórico de entradas e saídas.", en: "History of stock entries and withdrawals." } },
-    { id: "rooms", label: { pt: "Reservas", en: "Reservations" }, icon: "hotel", permission: permissions.stockRead, title: { pt: "Reservas de camas", en: "Bed reservations" }, subtitle: { pt: "Monitoramento genérico de camas, reservas e ocupação sem dados pessoais.", en: "Generic monitoring for beds, reservations, and occupancy without personal data." } },
+    { id: "rooms", label: { pt: "Reservas", en: "Reservations" }, icon: "hotel", permission: permissions.stockRead, title: { pt: "Reservas de camas", en: "Bed reservations" }, subtitle: { pt: "Monitoramento genérico de camas, reservas e ocupação com campos configuráveis.", en: "Generic monitoring for beds, reservations, and configurable occupancy fields." } },
     { id: "products", label: { pt: "Itens", en: "Items" }, icon: "boxes", permission: permissions.productsManage, title: { pt: "Itens", en: "Items" }, subtitle: { pt: "Cadastro flexível do catálogo.", en: "Flexible catalog item registration." } },
     { id: "employees", label: { pt: "Funcionários", en: "Employees" }, icon: "users", permission: permissions.employeesManage, title: { pt: "Funcionários", en: "Employees" }, subtitle: { pt: "Pessoas disponíveis para movimentações.", en: "People available for inventory movements." } },
     { id: "reminders", label: { pt: "Lembretes", en: "Reminders" }, icon: "bell-ring", permission: permissions.remindersManage, title: { pt: "Lembretes", en: "Reminders" }, subtitle: { pt: "Regras editáveis de alerta de estoque.", en: "Editable stock alert rules." } },
@@ -52,6 +53,21 @@
   const screenVisibilityRoles = [
     { role: "admin", label: "Admin" },
     { role: "standard", label: "User" }
+  ];
+
+  const bedFieldVisibilityCatalog = [
+    { id: "guestName", label: "Nome do hóspede" },
+    { id: "guestCode", label: "Código interno do hóspede" },
+    { id: "cpf", label: "CPF" },
+    { id: "phone", label: "Telefone" },
+    { id: "emergencyContact", label: "Contato de emergência" },
+    { id: "emergencyPhone", label: "Telefone de emergência" },
+    { id: "bloodType", label: "Tipo sanguíneo" },
+    { id: "checkIn", label: "Entrada" },
+    { id: "checkOut", label: "Saída prevista" },
+    { id: "actualCheckOut", label: "Saída real" },
+    { id: "note", label: "Observação operacional" },
+    { id: "operator", label: "Responsável pela alteração" }
   ];
 
   document.addEventListener("DOMContentLoaded", init);
@@ -152,6 +168,14 @@
   }
 
   async function refreshSession() {
+    // A password link is a bearer flow and must take precedence over an existing app session.
+    if (state.pendingPassword) {
+      state.auth = null;
+      showAuth();
+      setAuthTab("password");
+      return;
+    }
+
     state.auth = await authJson("/me", { method: "GET" });
     if (state.auth.isAuthenticated) {
       await loadScreenVisibility();
@@ -276,6 +300,7 @@
 
   function showAuth() {
     stopSessionSync();
+    stopRoomTimer();
     elements.appShell.classList.add("hidden");
     elements.authGate.classList.remove("hidden");
     const canRegister = state.auth?.selfRegistrationEnabled !== false;
@@ -295,6 +320,7 @@
     renderUserMenu();
     renderFooter();
     startSessionSync();
+    startRoomTimer();
   }
 
   function setAuthTab(tab) {
@@ -398,8 +424,8 @@
   function setTheme(theme, persist = true) {
     state.theme = theme === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = state.theme;
-    document.querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", state.theme === "dark" ? "#101513" : "#f6f7f4");
+      document.querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", state.theme === "dark" ? "#071b2a" : "#f4f9fc");
 
     if (persist) {
       try {
@@ -456,10 +482,34 @@
 
   async function loadScreenVisibility() {
     try {
-      state.screenVisibility = await json("/api/access/screen-visibility");
+      const endpoint = can(permissions.accessManage)
+        ? "/api/access/screen-visibility"
+        : "/api/access/screen-visibility/current";
+      state.screenVisibility = normalizeScreenVisibility(await json(endpoint));
     } catch {
-      state.screenVisibility = { hiddenScreensByRole: { admin: [], standard: [] } };
+      state.screenVisibility = defaultScreenVisibility();
     }
+  }
+
+  function defaultScreenVisibility() {
+    return {
+      hiddenScreensByRole: { admin: [], standard: [] },
+      hiddenFieldsByRole: { admin: [], standard: [] }
+    };
+  }
+
+  function normalizeScreenVisibility(settings = {}) {
+    const fallback = defaultScreenVisibility();
+    return {
+      hiddenScreensByRole: {
+        ...fallback.hiddenScreensByRole,
+        ...(settings.hiddenScreensByRole || {})
+      },
+      hiddenFieldsByRole: {
+        ...fallback.hiddenFieldsByRole,
+        ...(settings.hiddenFieldsByRole || {})
+      }
+    };
   }
 
   function startSessionSync() {
@@ -476,6 +526,24 @@
       window.clearInterval(state.sessionSyncTimer);
       state.sessionSyncTimer = null;
     }
+  }
+
+  function startRoomTimer() {
+    stopRoomTimer();
+    state.roomTimerInterval = window.setInterval(refreshRoomTimers, 1000);
+  }
+
+  function stopRoomTimer() {
+    if (state.roomTimerInterval) {
+      window.clearInterval(state.roomTimerInterval);
+      state.roomTimerInterval = null;
+    }
+  }
+
+  function refreshRoomTimers() {
+    document.querySelectorAll("[data-occupancy-timer]").forEach((element) => {
+      element.textContent = formatElapsed(element.dataset.occupancyTimer);
+    });
   }
 
   async function syncSessionState() {
@@ -512,7 +580,8 @@
     return JSON.stringify({
       role: state.auth?.user?.role || "",
       permissions: state.auth?.permissions || [],
-      hiddenScreensByRole: state.screenVisibility?.hiddenScreensByRole || {}
+      hiddenScreensByRole: state.screenVisibility?.hiddenScreensByRole || {},
+      hiddenFieldsByRole: state.screenVisibility?.hiddenFieldsByRole || {}
     });
   }
 
@@ -717,7 +786,7 @@
   }
 
   async function renderRoomReservations() {
-    const data = loadRoomReservations();
+    const data = await loadRoomReservations();
     const rooms = flattenRooms(data);
     const visibleRooms = rooms.filter((item) =>
       (state.roomFilter.status === "all" || item.status === state.roomFilter.status)
@@ -733,8 +802,10 @@
     const occupancy = Math.round((occupied / operational) * 100);
     const checkoutsToday = rooms.filter((item) => isSameLocalDate(item.checkOut, new Date())).length;
     const alert = roomReservationAlert(occupancy, available, offline);
+    const showCheckoutSummary = !isBedFieldHidden("checkOut");
 
     elements.content.innerHTML = `
+      <div class="rooms-experience">
       <section class="room-alert ${alert.tone}">
         <i data-lucide="${escapeAttribute(alert.icon)}"></i>
         <div>
@@ -764,7 +835,7 @@
         <section class="panel reservation-summary">
           <div class="panel-heading">
             <h2>Fluxo previsto</h2>
-            <span class="tag ${checkoutsToday ? "warn" : "good"}">${checkoutsToday} saída(s) hoje</span>
+            ${showCheckoutSummary ? `<span class="tag ${checkoutsToday ? "warn" : "good"}">${checkoutsToday} saída(s) hoje</span>` : ""}
           </div>
           <dl>
             <div><dt>Operacionais</dt><dd>${operational}</dd></div>
@@ -802,10 +873,11 @@
           <span class="tag">Recolhível</span>
         </summary>
         <div class="history-actions">
-          <button class="button ghost" type="button" data-room-reset-demo><i data-lucide="rotate-ccw"></i><span>Restaurar exemplo</span></button>
+          ${can(permissions.accessManage) ? `<button class="button ghost" type="button" data-room-reset-demo><i data-lucide="rotate-ccw"></i><span>Restaurar exemplo</span></button>` : ""}
         </div>
         ${renderRoomHistory(data.history)}
       </details>
+      </div>
     `;
     refreshIcons();
   }
@@ -813,6 +885,8 @@
   function renderRoomCard(item) {
     const status = roomStatuses().find((entry) => entry.id === item.status) || roomStatuses()[0];
     const canOperate = can(permissions.stockMove);
+    const period = formatVisibleRoomPeriod(item);
+    const showTimer = ["reserved", "occupied"].includes(item.status) && item.occupancyStartedAt;
     return `
       <article class="room-card ${escapeAttribute(item.status)}">
         <header>
@@ -820,13 +894,23 @@
           <span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span>
         </header>
         <h3>${escapeHtml(item.label)}</h3>
+        ${showTimer ? `
+          <div class="room-timer">
+            <i data-lucide="timer"></i>
+            <span>Tempo em uso</span>
+            <strong data-occupancy-timer="${escapeAttribute(item.occupancyStartedAt)}">${escapeHtml(formatElapsed(item.occupancyStartedAt))}</strong>
+          </div>
+        ` : ""}
         <dl>
           <div><dt>Categoria</dt><dd>${escapeHtml(item.category)}</dd></div>
           <div><dt>Capacidade</dt><dd>${escapeHtml(String(item.capacity))}</dd></div>
-          <div><dt>Reserva</dt><dd>${escapeHtml(item.reservationCode || "-")}</dd></div>
-          <div><dt>Período</dt><dd>${escapeHtml(formatRoomPeriod(item))}</dd></div>
+          ${item.guestName && !isBedFieldHidden("guestName") ? `<div><dt>Hóspede</dt><dd>${escapeHtml(item.guestName)}</dd></div>` : ""}
+          ${isBedFieldHidden("guestCode") ? "" : `<div><dt>Código</dt><dd>${escapeHtml(item.reservationCode || "-")}</dd></div>`}
+          ${item.cpf && !isBedFieldHidden("cpf") ? `<div><dt>CPF</dt><dd>${escapeHtml(maskCpf(item.cpf))}</dd></div>` : ""}
+          ${item.phone && !isBedFieldHidden("phone") ? `<div><dt>Telefone</dt><dd>${escapeHtml(item.phone)}</dd></div>` : ""}
+          ${period ? `<div><dt>Período</dt><dd>${escapeHtml(period)}</dd></div>` : ""}
         </dl>
-        ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+        ${item.note && !isBedFieldHidden("note") ? `<p>${escapeHtml(item.note)}</p>` : ""}
         ${canOperate ? `
           <div class="room-actions">
             <a class="icon-button" title="Editar status" aria-label="Editar status de ${escapeAttribute(item.label)}" href="/form?room=${encodeURIComponent(`${item.areaId}|${item.id}`)}"><i data-lucide="pencil"></i></a>
@@ -857,7 +941,7 @@
                   </div>
                   <strong>${escapeHtml(room.label)}</strong>
                   <span>${escapeHtml(status.label)}</span>
-                  <small>${escapeHtml(room.reservationCode || room.category)}</small>
+                  <small>${escapeHtml(isBedFieldHidden("guestCode") ? room.category : room.reservationCode || room.category)}</small>
                 </article>
               `;
             }).join("")}
@@ -871,11 +955,14 @@
   function renderRoomHistory(history = []) {
     const recent = history.slice(0, 12);
     if (!recent.length) return empty("Nenhum histórico de reserva registrado.");
+    const showCode = !isBedFieldHidden("guestCode");
+    const showNote = !isBedFieldHidden("note");
+    const showOperator = !isBedFieldHidden("operator");
 
     return `
       <div class="table-card">
         <table>
-          <thead><tr><th>Data</th><th>Cama</th><th>Status</th><th>Código</th><th>Observação</th></tr></thead>
+          <thead><tr><th>Data</th><th>Cama</th><th>Status</th>${showCode ? "<th>Código</th>" : ""}${showNote ? "<th>Observação</th>" : ""}${showOperator ? "<th>Responsável</th>" : ""}</tr></thead>
           <tbody>
             ${recent.map((entry) => {
               const status = roomStatuses().find((item) => item.id === entry.status) || roomStatuses()[0];
@@ -884,8 +971,9 @@
                   <td>${formatDateTime(entry.date)}</td>
                   <td>${escapeHtml(entry.roomLabel)}</td>
                   <td><span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span></td>
-                  <td>${escapeHtml(entry.reservationCode || "-")}</td>
-                  <td>${escapeHtml(entry.note || "-")}</td>
+                  ${showCode ? `<td>${escapeHtml(entry.reservationCode || "-")}</td>` : ""}
+                  ${showNote ? `<td>${escapeHtml(entry.note || "-")}</td>` : ""}
+                  ${showOperator ? `<td>${escapeHtml(entry.operator || "-")}</td>` : ""}
                 </tr>
               `;
             }).join("")}
@@ -911,16 +999,9 @@
       .join("");
   }
 
-  function loadRoomReservations() {
-    if (!state.roomReservations) {
-      state.roomReservations = normalizeRoomReservations(readStoredJson("generic-inventory.roomReservations", defaultRoomReservations()));
-    }
-
+  async function loadRoomReservations() {
+    state.roomReservations = normalizeRoomReservations(await json("/api/rooms"));
     return state.roomReservations;
-  }
-
-  function saveRoomReservations() {
-    localStorage.setItem("generic-inventory.roomReservations", JSON.stringify(state.roomReservations));
   }
 
   function defaultRoomReservations() {
@@ -955,7 +1036,7 @@
 
   function normalizeRoomReservations(data) {
     const fallback = defaultRoomReservations();
-    const isCurrentModel = data?.modelVersion === 3 &&
+    const isCurrentModel = [3, 4].includes(Number(data?.modelVersion)) &&
       Array.isArray(data.areas) &&
       data.areas.length === 1 &&
       data.areas[0]?.id === "camas";
@@ -989,6 +1070,18 @@
     };
   }
 
+  function formatElapsed(value) {
+    const startedAt = Date.parse(value || "");
+    if (!Number.isFinite(startedAt)) return "00:00:00";
+    const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const clock = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+    return days ? `${days}d ${clock}` : clock;
+  }
+
   function flattenRooms(data) {
     return data.areas.flatMap((area) =>
       area.rooms.map((room) => ({
@@ -999,114 +1092,43 @@
     );
   }
 
-  function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "", roomLabel = "", category = "", capacity = 1) {
-    const data = loadRoomReservations();
+  async function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "", roomLabel = "", category = "", capacity = 1) {
     const [areaId, roomId] = String(roomKey || "").split("|");
-    const area = data.areas.find((item) => item.id === areaId);
-    const room = area?.rooms.find((item) => item.id === roomId);
-    if (!area || !room) {
-      throw new Error("Cama não encontrada.");
-    }
-
-    const nextLabel = sanitizeBedLabel(roomLabel || room.label);
-    if (!nextLabel) {
-      throw new Error("Informe a identificação da cama.");
-    }
-
-    const nextId = slugify(nextLabel);
-    if (area.rooms.some((item) => item !== room && (item.id === nextId || item.label.toLowerCase() === nextLabel.toLowerCase()))) {
-      throw new Error("Já existe uma cama com esta identificação.");
-    }
-
-    const safeCode = sanitizeReservationCode(reservationCode || room.reservationCode || "");
-    const nextCode = ["reserved", "occupied"].includes(status)
-      ? safeCode || `RSV-${String(Date.now()).slice(-6)}`
-      : "";
-
-    room.id = nextId;
-    room.label = nextLabel;
-    room.category = sanitizeOperationalNote(category) || "Leito";
-    room.capacity = Math.max(1, Number(capacity || 1));
-    room.status = status;
-    room.reservationCode = nextCode;
-    room.checkIn = ["reserved", "occupied"].includes(status) ? checkIn || room.checkIn || todayInputValue() : "";
-    room.checkOut = ["reserved", "occupied"].includes(status) ? checkOut || room.checkOut || "" : "";
-    room.note = sanitizeOperationalNote(note || (status === "cleaning" ? "Limpeza em andamento" : status === "maintenance" ? "Manutenção programada" : ""));
-    room.updatedAt = new Date().toISOString();
-
-    data.history.unshift({
-      date: room.updatedAt,
-      areaName: area.name,
-      roomLabel: room.label,
-      status,
-      reservationCode: room.reservationCode,
-      note: room.note
+    if (areaId !== "camas" || !roomId) throw new Error("Cama não encontrada.");
+    const updated = await json(`/api/rooms/${encodeURIComponent(roomId)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        status,
+        reservationCode,
+        checkIn,
+        checkOut,
+        note,
+        roomLabel,
+        category,
+        capacity
+      })
     });
-    data.history = data.history.slice(0, 60);
-    state.selectedRoomKey = `${area.id}|${room.id}`;
-    saveRoomReservations();
+    state.roomReservations = null;
+    state.selectedRoomKey = `camas|${updated.id || roomId}`;
   }
 
-  function addRoomReservation(roomLabel, category, capacity) {
-    const data = loadRoomReservations();
-    const area = data.areas[0] || { id: "camas", name: "Camas", rooms: [] };
-    if (!data.areas.length) {
-      data.areas.push(area);
-    }
-
-    const label = sanitizeBedLabel(roomLabel || nextBedLabel(flattenRooms(data)));
-    if (!label) {
-      throw new Error("Informe a identificação da cama.");
-    }
-
-    const roomId = slugify(label);
-    if (flattenRooms(data).some((room) => room.id === roomId || room.label.toLowerCase() === label.toLowerCase())) {
-      throw new Error("Já existe uma cama com esta identificação.");
-    }
-
-    const room = roomSeed(label, sanitizeOperationalNote(category) || "Leito", Math.max(1, Number(capacity || 1)), "available");
-    room.fixed = false;
-    area.rooms.push(room);
-    data.history.unshift({
-      date: new Date().toISOString(),
-      areaName: area.name,
-      roomLabel: room.label,
-      status: "available",
-      reservationCode: "",
-      note: "Cama adicionada"
+  async function addRoomReservation(roomLabel, category, capacity) {
+    const created = await json("/api/rooms", {
+      method: "POST",
+      body: JSON.stringify({ roomLabel, category, capacity })
     });
-    data.history = data.history.slice(0, 60);
-    state.selectedRoomKey = `${area.id}|${room.id}`;
+    state.roomReservations = null;
+    state.selectedRoomKey = `camas|${created.id}`;
     state.roomFilter.status = "all";
-    saveRoomReservations();
   }
 
-  function deleteRoomReservation(roomKey) {
-    const data = loadRoomReservations();
+  async function deleteRoomReservation(roomKey) {
     const [areaId, roomId] = String(roomKey || "").split("|");
-    const area = data.areas.find((item) => item.id === areaId);
-    const room = area?.rooms.find((item) => item.id === roomId);
-    if (!area || !room) {
-      throw new Error("Cama não encontrada.");
-    }
-
-    if (!canDeleteRoom({ ...room, areaId: area.id })) {
-      throw new Error("As camas fixas de Cama 1 a Cama 24 não podem ser excluídas.");
-    }
-
-    area.rooms = area.rooms.filter((item) => item.id !== room.id);
-    data.history.unshift({
-      date: new Date().toISOString(),
-      areaName: area.name,
-      roomLabel: room.label,
-      status: room.status,
-      reservationCode: room.reservationCode || "",
-      note: "Cama adicional excluída"
-    });
-    data.history = data.history.slice(0, 60);
+    if (areaId !== "camas" || !roomId) throw new Error("Cama não encontrada.");
+    await json(`/api/rooms/${encodeURIComponent(roomId)}`, { method: "DELETE" });
+    state.roomReservations = null;
     state.selectedRoomKey = "";
     state.roomAction = "";
-    saveRoomReservations();
   }
 
   function canDeleteRoom(room) {
@@ -1114,7 +1136,7 @@
   }
 
   function roomLabelFromKey(roomKey) {
-    return flattenRooms(loadRoomReservations())
+    return flattenRooms(state.roomReservations || defaultRoomReservations())
       .find((room) => `${room.areaId}|${room.id}` === roomKey)
       ?.label || "";
   }
@@ -1206,6 +1228,15 @@
   function formatRoomPeriod(room) {
     if (!room.checkIn && !room.checkOut) return "-";
     return `${room.checkIn ? formatDateOnly(room.checkIn) : "-"} → ${room.checkOut ? formatDateOnly(room.checkOut) : "-"}`;
+  }
+
+  function formatVisibleRoomPeriod(room) {
+    const showCheckIn = !isBedFieldHidden("checkIn");
+    const showCheckOut = !isBedFieldHidden("checkOut");
+    if (!showCheckIn && !showCheckOut) return "";
+    if (showCheckIn && showCheckOut) return formatRoomPeriod(room);
+    if (showCheckIn) return room.checkIn ? `Entrada: ${formatDateOnly(room.checkIn)}` : "";
+    return room.checkOut ? `Saída prevista: ${formatDateOnly(room.checkOut)}` : "";
   }
 
   function todayInputValue() {
@@ -1536,7 +1567,7 @@
         </section>
       </section>
       ${renderApprovalFlowSettings(approvalFlowSettings)}
-      ${isDeveloperUser() ? renderScreenVisibilitySettings() : ""}
+      ${can(permissions.accessManage) ? renderScreenVisibilitySettings() : ""}
       ${state.passwordLinkResult ? renderPasswordLinkReveal(state.passwordLinkResult) : ""}
       <section class="table-card">
         ${renderUsersTable(users, assignableRoles)}
@@ -1663,6 +1694,10 @@
     return state.auth?.user?.role === "developer";
   }
 
+  function isAdminUser() {
+    return state.auth?.user?.role === "admin";
+  }
+
   function isScreenHiddenForCurrentRole(viewId) {
     if (isDeveloperUser()) {
       return false;
@@ -1671,6 +1706,28 @@
     const role = state.auth?.user?.role || "";
     const hidden = state.screenVisibility?.hiddenScreensByRole?.[role] || [];
     return hidden.includes(viewId);
+  }
+
+  function isBedFieldHidden(fieldId) {
+    if (isDeveloperUser()) {
+      return false;
+    }
+
+    const role = state.auth?.user?.role || "";
+    const hidden = state.screenVisibility?.hiddenFieldsByRole?.[role] || [];
+    return hidden.includes(fieldId);
+  }
+
+  function visibilityRolesForCurrentUser() {
+    if (isDeveloperUser()) {
+      return screenVisibilityRoles;
+    }
+
+    if (isAdminUser()) {
+      return screenVisibilityRoles.filter((role) => role.role === "standard");
+    }
+
+    return [];
   }
 
   function renderDocumentation() {
@@ -1689,7 +1746,7 @@
         <article class="panel doc-card">
           <i data-lucide="shield-check"></i>
           <h2>Access and security</h2>
-          <p>The Developer account is above Admin and can access technical catalog import tools. Default test login: <code>dev@email.com</code>. Change temporary passwords before production use.</p>
+          <p>The Developer account is above Admin and can access technical catalog import tools. Create it through an existing Developer invite or explicit secret-based bootstrap outside Git.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="file-spreadsheet"></i>
@@ -1699,12 +1756,12 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Generic bed reservations</h2>
-          <p>The Reservations page starts with 24 editable beds, lets operators add more beds, and opens a dedicated segmented form at <code>/form</code> to choose status, identify the operator, and save operational details. Do not store guest names, documents, phone numbers, addresses, or sensitive data.</p>
+          <p>The Reservations page starts with 24 editable beds, lets operators add more beds, and opens a dedicated segmented form at <code>/form</code> to choose status, identify the operator, and save necessary operational details. Collect only what is needed, restrict sensitive fields in Access, and follow your organization's data-protection policy.</p>
         </article>
         <article class="panel doc-card">
-          <i data-lucide="clipboard-list"></i>
-          <h2>Next update task</h2>
-          <p>Screen visibility for Admin and User is controlled by Developer, including the Access screen. Developer can also define user passwords directly. The next task is an editable Developer screen for configuring visible fields and custom field behavior by access level.</p>
+          <i data-lucide="eye-off"></i>
+          <h2>Field visibility</h2>
+          <p>The Access screen controls hidden screens and hidden bed/occupancy fields by profile. Developer can configure Admin and User; Admin can configure only User. Hidden fields stay saved and are not shown in cards, forms, dashboards, or history.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1728,7 +1785,7 @@
         <article class="panel doc-card">
           <i data-lucide="shield-check"></i>
           <h2>Acesso e segurança</h2>
-          <p>A conta Developer fica acima do Admin e pode acessar ferramentas técnicas de importação de catálogo. Login padrão de teste: <code>dev@email.com</code>. Troque senhas temporárias antes de produção.</p>
+          <p>A conta Developer fica acima do Admin e pode acessar ferramentas técnicas de importação de catálogo. Crie-a por convite de um Developer existente ou por provisionamento explícito via segredo fora do Git.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="file-spreadsheet"></i>
@@ -1738,12 +1795,12 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Reservas genéricas de camas</h2>
-          <p>A tela Reservas inicia com 24 camas editáveis, permite adicionar novas camas e abre um formulário segmentado em <code>/form</code> para escolher status, identificar o responsável e salvar detalhes operacionais. Não registre nomes de hóspedes, documentos, telefones, endereços ou dados sensíveis.</p>
+          <p>A tela Reservas inicia com 24 camas editáveis, permite adicionar novas camas e abre um formulário segmentado em <code>/form</code> para escolher status, identificar o responsável e salvar os dados operacionais necessários. Colete apenas o necessário, restrinja campos sensíveis em Acessos e siga a política de proteção de dados da organização.</p>
         </article>
         <article class="panel doc-card">
-          <i data-lucide="clipboard-list"></i>
-          <h2>Tarefa da próxima atualização</h2>
-          <p>A visibilidade de telas para Admin e User é controlada pelo Developer, incluindo a tela Acessos. O Developer também pode definir senhas diretamente. A próxima tarefa é criar uma tela Developer editável para configurar campos visíveis e comportamento de campos personalizados por nível de acesso.</p>
+          <i data-lucide="eye-off"></i>
+          <h2>Visibilidade de campos</h2>
+          <p>A tela Acessos controla telas ocultas e campos ocultos de camas/ocupações por perfil. Developer configura Admin e User; Admin configura apenas User. Campos ocultos continuam salvos e não aparecem em cards, formulário, dashboard ou histórico.</p>
         </article>
       </section>
       <section class="panel legal-panel">
@@ -1758,25 +1815,45 @@
 
   function renderScreenVisibilitySettings() {
     const configurableViews = views;
+    const configurableRoles = visibilityRolesForCurrentUser();
+    if (!configurableRoles.length) {
+      return "";
+    }
+
     return `
       <form class="panel screen-visibility-panel" data-screen-visibility-form>
         <div class="panel-heading">
           <div>
             <h2>Visibilidade por perfil</h2>
-            <p>Marque as telas que devem ficar ocultas para Admin ou User. Developer sempre enxerga tudo.</p>
+            <p>Marque telas e campos que devem ficar ocultos para cada perfil permitido. Developer sempre enxerga tudo.</p>
           </div>
-          <span class="tag good">Developer</span>
+          <span class="tag good">${isDeveloperUser() ? "Developer" : "Admin"}</span>
         </div>
-        <div class="visibility-grid">
-          ${screenVisibilityRoles.map((role) => `
-            <section>
+        <div class="visibility-groups">
+          ${configurableRoles.map((role) => `
+            <section class="visibility-role-group">
               <h3>${escapeHtml(role.label)}</h3>
-              ${configurableViews.map((view) => `
-                <label class="checkbox-line">
-                  <input type="checkbox" name="${escapeAttribute(role.role)}" value="${escapeAttribute(view.id)}" ${isScreenHiddenForRole(role.role, view.id) ? "checked" : ""}>
-                  ${escapeHtml(viewText(view, "label"))}
-                </label>
-              `).join("")}
+              <div class="visibility-grid">
+                <section>
+                  <h4>Telas</h4>
+                  ${configurableViews.map((view) => `
+                    <label class="checkbox-line">
+                      <input type="checkbox" name="screen:${escapeAttribute(role.role)}" value="${escapeAttribute(view.id)}" ${isScreenHiddenForRole(role.role, view.id) ? "checked" : ""}>
+                      ${escapeHtml(viewText(view, "label"))}
+                    </label>
+                  `).join("")}
+                </section>
+                <section>
+                  <h4>Visibilidade de campos</h4>
+                  <p>Camas e ocupações</p>
+                  ${bedFieldVisibilityCatalog.map((field) => `
+                    <label class="checkbox-line">
+                      <input type="checkbox" name="field:${escapeAttribute(role.role)}" value="${escapeAttribute(field.id)}" ${isBedFieldHiddenForRole(role.role, field.id) ? "checked" : ""}>
+                      <span>${escapeHtml(field.label)} <small>Ocultar este campo para o perfil selecionado</small></span>
+                    </label>
+                  `).join("")}
+                </section>
+              </div>
             </section>
           `).join("")}
         </div>
@@ -1792,9 +1869,32 @@
     return hidden.includes(viewId);
   }
 
+  function isBedFieldHiddenForRole(role, fieldId) {
+    const hidden = state.screenVisibility?.hiddenFieldsByRole?.[role] || [];
+    return hidden.includes(fieldId);
+  }
+
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.4.0-beta</span>
+            <h2>${state.language === "en" ? "Live occupancy timer and immersive bed monitor" : "Cronômetro de ocupação e monitor de camas renovado"}</h2>
+            <p>${state.language === "en"
+              ? "Adds a persistent live timer for reserved and occupied beds, a mobile-friendly segmented edit form, and the official Plasma UI liquid-glass layer with a CSS fallback when WebGL is unavailable."
+              : "Adiciona cronômetro persistente e atualizado em tempo real para camas reservadas e ocupadas, formulário segmentado adaptado ao celular e a camada liquid-glass oficial do Plasma UI, com fallback CSS quando o WebGL não estiver disponível."}</p>
+          </div>
+        </article>
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.3.0-beta</span>
+            <h2>${state.language === "en" ? "Field visibility by access profile" : "Visibilidade de campos por perfil"}</h2>
+            <p>${state.language === "en"
+              ? "Adds hidden bed and occupancy fields by role in Access, preserves stored data, applies changes to Reservations and /form, and refreshes open sessions without logout."
+              : "Adiciona campos ocultáveis de camas e ocupações por perfil em Acessos, preserva os dados salvos, aplica a Reservas e /form e atualiza sessões abertas sem logout."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.2.9-beta</span>
@@ -1845,8 +1945,8 @@
             <span class="tag warn">v1.2.4-beta</span>
             <h2>${state.language === "en" ? "Developer login hotfix and Portuguese review" : "Correção do login Developer e revisão de português"}</h2>
             <p>${state.language === "en"
-              ? "Restores the default Developer test password during bootstrap when an old local account has a stale password, and refreshes visible Portuguese messages across the service."
-              : "Restaura a senha padrão de teste do Developer durante o bootstrap quando uma conta local antiga tem senha divergente, e revisa mensagens visíveis em português no serviço."}</p>
+              ? "Removes the default Developer test password, requires explicit secret-based provisioning, and refreshes visible Portuguese messages across the service."
+              : "Remove a senha padrão de teste do Developer, exige provisionamento explícito por segredo e revisa mensagens visíveis em português no serviço."}</p>
           </div>
         </article>
         <article class="panel release-card">
@@ -1872,8 +1972,8 @@
             <span class="tag warn">v1.2.0-beta</span>
             <h2>${state.language === "en" ? "Developer access and catalog import test version" : "Versão de testes com acesso Developer e importação de catálogo"}</h2>
             <p>${state.language === "en"
-              ? "Adds the Developer role above Admin, the default Developer test login, mobile menu adjustments, Developer-only catalog import for XLSX/CSV/searchable PDF, screen visibility controls for Admin/User, internal documentation updates, and the next task for editable Dev fields."
-              : "Adiciona o perfil Developer acima do Admin, login Developer padrão de teste, ajuste do menu mobile, importação de catálogo apenas para Developer por XLSX/CSV/PDF pesquisável, controle de visibilidade de telas para Admin/User, documentação interna e próxima tarefa para campos editáveis no modo Dev."}</p>
+              ? "Adds the Developer role above Admin, secure explicit Developer provisioning, mobile menu adjustments, Developer-only catalog import for XLSX/CSV/searchable PDF, screen visibility controls for Admin/User, internal documentation updates, and the next task for editable Dev fields."
+              : "Adiciona o perfil Developer acima do Admin, provisionamento seguro e explícito do Developer, ajuste do menu mobile, importação de catálogo apenas para Developer por XLSX/CSV/PDF pesquisável, controle de visibilidade de telas para Admin/User, documentação interna e próxima tarefa para campos editáveis no modo Dev."}</p>
           </div>
         </article>
         <article class="panel release-card">
@@ -1932,14 +2032,14 @@
       } else if (target.dataset.roomDelete) {
         const label = roomLabelFromKey(target.dataset.roomDelete);
         if (confirm(`Excluir ${label || "esta cama adicional"}?`)) {
-          deleteRoomReservation(target.dataset.roomDelete);
+          await deleteRoomReservation(target.dataset.roomDelete);
           showToast("Cama adicional excluída.", "success");
           await renderRoomReservations();
         }
       } else if (target.dataset.roomResetDemo !== undefined) {
         if (confirm("Restaurar as 24 camas de exemplo?")) {
-          state.roomReservations = defaultRoomReservations();
-          saveRoomReservations();
+          await json("/api/rooms/reset-demo", { method: "POST" });
+          state.roomReservations = null;
           showToast("Camas de exemplo restauradas.", "success");
           await renderRoomReservations();
         }
@@ -2165,7 +2265,7 @@
   async function saveRoomReservationForm(form) {
     const data = new FormData(form);
     state.selectedRoomKey = String(data.get("roomKey") || "");
-    updateRoomReservation(
+    await updateRoomReservation(
       state.selectedRoomKey,
       String(data.get("status") || "available"),
       String(data.get("reservationCode") || ""),
@@ -2183,7 +2283,7 @@
 
   async function saveRoomAddForm(form) {
     const data = new FormData(form);
-    addRoomReservation(
+    await addRoomReservation(
       String(data.get("roomLabel") || ""),
       String(data.get("category") || ""),
       Number(data.get("capacity") || 1)
@@ -2399,18 +2499,20 @@
 
   async function saveScreenVisibility(form) {
     const data = new FormData(form);
-    const hiddenScreensByRole = {};
-    screenVisibilityRoles.forEach((role) => {
-      hiddenScreensByRole[role.role] = data.getAll(role.role).map((value) => String(value));
+    const hiddenScreensByRole = { ...(state.screenVisibility?.hiddenScreensByRole || {}) };
+    const hiddenFieldsByRole = { ...(state.screenVisibility?.hiddenFieldsByRole || {}) };
+    visibilityRolesForCurrentUser().forEach((role) => {
+      hiddenScreensByRole[role.role] = data.getAll(`screen:${role.role}`).map((value) => String(value));
+      hiddenFieldsByRole[role.role] = data.getAll(`field:${role.role}`).map((value) => String(value));
     });
 
-    state.screenVisibility = await json("/api/access/screen-visibility", {
+    state.screenVisibility = normalizeScreenVisibility(await json("/api/access/screen-visibility", {
       method: "PUT",
-      body: JSON.stringify({ hiddenScreensByRole })
-    });
+      body: JSON.stringify({ hiddenScreensByRole, hiddenFieldsByRole })
+    }));
 
     renderNav();
-    showToast("Visibilidade das telas atualizada.", "success");
+    showToast("Visibilidade atualizada.", "success");
     await renderAccess();
   }
 
@@ -2570,6 +2672,12 @@
 
   function formatDateTime(value) {
     return value ? new Date(value).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) : "";
+  }
+
+  function maskCpf(value) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (digits.length !== 11) return digits ? "***" : "";
+    return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`;
   }
 
   function locale() {

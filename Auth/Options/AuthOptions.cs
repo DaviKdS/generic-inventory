@@ -17,7 +17,7 @@ public class AuthOptions
     /// Permite que um visitante abra uma solicitacao de acesso. Mesmo habilitado,
     /// a solicitacao nasce sem permissao: quem distribui o acesso e o administrador.
     /// </summary>
-    public bool AllowSelfRegistration { get; set; } = true;
+    public bool AllowSelfRegistration { get; set; }
 
     public AccessBootstrapOptions Bootstrap { get; set; } = new();
 }

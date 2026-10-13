@@ -90,7 +90,6 @@ public class CatalogImportService
             }
 
             product.CustomFieldsJson = JsonSerializer.Serialize(ReadCustomFields(row, mapping.CustomColumns));
-            product.Catalyst = string.Empty;
         }
 
         await _db.SaveChangesAsync(cancellationToken);

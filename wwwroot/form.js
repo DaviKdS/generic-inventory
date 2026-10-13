@@ -1,9 +1,27 @@
 (() => {
-  const STORAGE_KEY = "generic-inventory.roomReservations";
   const params = new URLSearchParams(window.location.search);
   const state = {
     roomKey: params.get("room") || "",
-    status: params.get("status") || ""
+    status: params.get("status") || "",
+    auth: null,
+    screenVisibility: defaultScreenVisibility(),
+    visibilitySyncTimer: null,
+    roomTimerInterval: null
+  };
+
+  const fieldAliases = {
+    guestName: "guestName",
+    reservationCode: "guestCode",
+    cpf: "cpf",
+    phone: "phone",
+    emergencyContact: "emergencyContact",
+    emergencyPhone: "emergencyPhone",
+    bloodType: "bloodType",
+    checkIn: "checkIn",
+    checkOut: "checkOut",
+    actualCheckOut: "actualCheckOut",
+    note: "note",
+    operator: "operator"
   };
 
   const elements = {
@@ -13,19 +31,68 @@
     subtitle: document.getElementById("formSubtitle")
   };
 
-  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((error) => {
+      showMessage(error.message || "Não foi possível abrir o formulário.", "error");
+    });
+  });
 
-  function init() {
+  async function init() {
     try {
-      render();
+      await loadRuntimeContext();
+      await render();
+      startVisibilitySync();
+      startRoomTimer();
       refreshIcons();
     } catch (error) {
       showMessage(error.message || "Não foi possível abrir o formulário.", "error");
     }
   }
 
-  function render() {
-    const data = loadRoomReservations();
+  async function loadRuntimeContext() {
+    const [auth, screenVisibility] = await Promise.all([
+      fetchJson("/api/auth/me").catch(() => null),
+      fetchJson("/api/access/screen-visibility/current").catch(() => defaultScreenVisibility())
+    ]);
+    state.auth = auth;
+    state.screenVisibility = normalizeScreenVisibility(screenVisibility);
+  }
+
+  function startVisibilitySync() {
+    if (state.visibilitySyncTimer) {
+      window.clearInterval(state.visibilitySyncTimer);
+    }
+
+    state.visibilitySyncTimer = window.setInterval(async () => {
+      const before = visibilitySignature();
+      await loadRuntimeContext();
+      if (before !== visibilitySignature()) {
+        await render();
+      }
+    }, 10000);
+  }
+
+  function startRoomTimer() {
+    if (state.roomTimerInterval) {
+      window.clearInterval(state.roomTimerInterval);
+    }
+
+    state.roomTimerInterval = window.setInterval(() => {
+      document.querySelectorAll("[data-occupancy-timer]").forEach((element) => {
+        element.textContent = formatElapsed(element.dataset.occupancyTimer);
+      });
+    }, 1000);
+  }
+
+  function visibilitySignature() {
+    return JSON.stringify({
+      role: state.auth?.user?.role || "",
+      hiddenFieldsByRole: state.screenVisibility?.hiddenFieldsByRole || {}
+    });
+  }
+
+  async function render() {
+    const data = await loadRoomReservations();
     const room = findRoom(data, state.roomKey);
     if (!room) {
       elements.content.innerHTML = `
@@ -81,6 +148,20 @@
   }
 
   function renderDetailsForm(room, status) {
+    const showGuestName = !isBedFieldHidden(fieldAliases.guestName);
+    const showReservationCode = !isBedFieldHidden(fieldAliases.reservationCode);
+    const showCpf = !isBedFieldHidden(fieldAliases.cpf);
+    const showPhone = !isBedFieldHidden(fieldAliases.phone);
+    const showEmergencyContact = !isBedFieldHidden(fieldAliases.emergencyContact);
+    const showEmergencyPhone = !isBedFieldHidden(fieldAliases.emergencyPhone);
+    const showBloodType = !isBedFieldHidden(fieldAliases.bloodType);
+    const showCheckIn = !isBedFieldHidden(fieldAliases.checkIn);
+    const showCheckOut = !isBedFieldHidden(fieldAliases.checkOut);
+    const showActualCheckOut = !isBedFieldHidden(fieldAliases.actualCheckOut);
+    const showOperator = !isBedFieldHidden(fieldAliases.operator);
+    const showNote = !isBedFieldHidden(fieldAliases.note);
+    const showTimer = ["reserved", "occupied"].includes(status.id) && room.occupancyStartedAt;
+
     return `
       <section class="form-card ${escapeAttribute(status.id)}">
         <div class="form-card-header">
@@ -90,6 +171,13 @@
           </div>
           <a class="button ghost" href="/form?room=${encodeURIComponent(state.roomKey)}"><i data-lucide="arrow-left"></i><span>Status</span></a>
         </div>
+        ${showTimer ? `
+          <div class="form-timer">
+            <i data-lucide="timer"></i>
+            <span>Tempo em uso</span>
+            <strong data-occupancy-timer="${escapeAttribute(room.occupancyStartedAt)}">${escapeHtml(formatElapsed(room.occupancyStartedAt))}</strong>
+          </div>
+        ` : ""}
         <form class="room-form" data-room-form>
           <label>
             <span>Identificação da cama</span>
@@ -103,26 +191,78 @@
             <span>Capacidade</span>
             <input name="capacity" type="number" min="1" value="${escapeAttribute(room.capacity || 1)}" required>
           </label>
+          ${showReservationCode ? `
           <label>
-            <span>Código da reserva</span>
-            <input name="reservationCode" value="${escapeAttribute(room.reservationCode || "")}" ${["reserved", "occupied"].includes(status.id) ? "" : "disabled"}>
+            <span>Código interno do hóspede</span>
+            <input name="reservationCode" value="${escapeAttribute(room.reservationCode || "")}">
           </label>
+          ` : ""}
+          ${showGuestName ? `
+          <label>
+            <span>Nome do hóspede</span>
+            <input name="guestName" value="${escapeAttribute(room.guestName || "")}">
+          </label>
+          ` : ""}
+          ${showCpf ? `
+          <label>
+            <span>CPF</span>
+            <input name="cpf" inputmode="numeric" value="${escapeAttribute(room.cpf || "")}">
+          </label>
+          ` : ""}
+          ${showPhone ? `
+          <label>
+            <span>Telefone</span>
+            <input name="phone" inputmode="tel" value="${escapeAttribute(room.phone || "")}">
+          </label>
+          ` : ""}
+          ${showEmergencyContact ? `
+          <label>
+            <span>Contato de emergência</span>
+            <input name="emergencyContact" value="${escapeAttribute(room.emergencyContact || "")}">
+          </label>
+          ` : ""}
+          ${showEmergencyPhone ? `
+          <label>
+            <span>Telefone de emergência</span>
+            <input name="emergencyPhone" inputmode="tel" value="${escapeAttribute(room.emergencyPhone || "")}">
+          </label>
+          ` : ""}
+          ${showBloodType ? `
+          <label>
+            <span>Tipo sanguíneo</span>
+            <input name="bloodType" value="${escapeAttribute(room.bloodType || "")}">
+          </label>
+          ` : ""}
+          ${showCheckIn ? `
           <label>
             <span>Entrada prevista</span>
-            <input name="checkIn" type="date" value="${escapeAttribute(room.checkIn || "")}" ${["reserved", "occupied"].includes(status.id) ? "" : "disabled"}>
+            <input name="checkIn" type="date" value="${escapeAttribute(room.checkIn || "")}">
           </label>
+          ` : ""}
+          ${showCheckOut ? `
           <label>
             <span>Saída prevista</span>
-            <input name="checkOut" type="date" value="${escapeAttribute(room.checkOut || "")}" ${["reserved", "occupied"].includes(status.id) ? "" : "disabled"}>
+            <input name="checkOut" type="date" value="${escapeAttribute(room.checkOut || "")}">
           </label>
+          ` : ""}
+          ${showActualCheckOut ? `
+          <label>
+            <span>Saída real</span>
+            <input name="actualCheckOut" type="date" value="${escapeAttribute(room.actualCheckOut || "")}">
+          </label>
+          ` : ""}
+          ${showOperator ? `
           <label class="full">
             <span>Responsável pela alteração</span>
             <input name="operator" value="${escapeAttribute(room.operator || "")}" placeholder="Ex.: João da recepção">
           </label>
+          ` : ""}
+          ${showNote ? `
           <label class="full">
             <span>Observação operacional</span>
             <input name="note" value="${escapeAttribute(room.note || "")}" placeholder="Ex.: vistoria, limpeza, manutenção">
           </label>
+          ` : ""}
           <div class="form-actions">
             <a class="button ghost" href="/?view=rooms">Cancelar</a>
             <button class="button primary" type="submit"><i data-lucide="save"></i><span>Salvar e voltar</span></button>
@@ -139,14 +279,14 @@
         const url = new URL(window.location.href);
         url.searchParams.set("status", state.status);
         window.history.replaceState({}, "", url);
-        render();
+        render().catch((error) => showMessage(error.message || "Não foi possível abrir o formulário.", "error"));
       });
     });
 
-    elements.content.querySelector("[data-room-form]")?.addEventListener("submit", (event) => {
+    elements.content.querySelector("[data-room-form]")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
-        saveForm(event.currentTarget);
+        await saveForm(event.currentTarget);
         window.location.href = "/?view=rooms";
       } catch (error) {
         showMessage(error.message || "Não foi possível salvar.", "error");
@@ -154,31 +294,45 @@
     });
   }
 
-  function saveForm(form) {
+  async function saveForm(form) {
     const formData = new FormData(form);
-    const operator = sanitizeOperationalNote(String(formData.get("operator") || ""));
-    const note = String(formData.get("note") || "");
+    const data = await loadRoomReservations();
+    const room = findRoom(data, state.roomKey);
+    if (!room) throw new Error("Cama não encontrada.");
+    const preserveFields = new Set(
+      Object.values(fieldAliases).filter((fieldId) => isBedFieldHidden(fieldId))
+    );
+    const operator = preserveFields.has("operator")
+      ? room.operator || ""
+      : sanitizeOperationalNote(String(formData.get("operator") || ""));
+    const note = preserveFields.has("note")
+      ? room.note || ""
+      : String(formData.get("note") || "");
 
-    updateRoomReservation(
+    await updateRoomReservation(
       state.roomKey,
       state.status || "available",
-      String(formData.get("reservationCode") || ""),
-      String(formData.get("checkIn") || ""),
-      String(formData.get("checkOut") || ""),
+      preserveFields.has("guestName") ? room.guestName || "" : String(formData.get("guestName") || ""),
+      preserveFields.has("guestCode") ? room.reservationCode || "" : String(formData.get("reservationCode") || ""),
+      preserveFields.has("cpf") ? room.cpf || "" : String(formData.get("cpf") || ""),
+      preserveFields.has("phone") ? room.phone || "" : String(formData.get("phone") || ""),
+      preserveFields.has("emergencyContact") ? room.emergencyContact || "" : String(formData.get("emergencyContact") || ""),
+      preserveFields.has("emergencyPhone") ? room.emergencyPhone || "" : String(formData.get("emergencyPhone") || ""),
+      preserveFields.has("bloodType") ? room.bloodType || "" : String(formData.get("bloodType") || ""),
+      preserveFields.has("checkIn") ? room.checkIn || "" : String(formData.get("checkIn") || ""),
+      preserveFields.has("checkOut") ? room.checkOut || "" : String(formData.get("checkOut") || ""),
+      preserveFields.has("actualCheckOut") ? room.actualCheckOut || "" : String(formData.get("actualCheckOut") || ""),
       note,
       String(formData.get("roomLabel") || ""),
       String(formData.get("category") || ""),
       Number(formData.get("capacity") || 1),
-      operator
+      operator,
+      preserveFields
     );
   }
 
-  function loadRoomReservations() {
-    return normalizeRoomReservations(readStoredJson(STORAGE_KEY, defaultRoomReservations()));
-  }
-
-  function saveRoomReservations(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  async function loadRoomReservations() {
+    return normalizeRoomReservations(await fetchJson("/api/rooms"));
   }
 
   function defaultRoomReservations() {
@@ -204,7 +358,7 @@
 
   function normalizeRoomReservations(data) {
     const fallback = defaultRoomReservations();
-    const isCurrentModel = data?.modelVersion === 3 && Array.isArray(data.areas) && data.areas[0]?.id === "camas";
+    const isCurrentModel = [3, 4].includes(Number(data?.modelVersion)) && Array.isArray(data.areas) && data.areas[0]?.id === "camas";
     if (!isCurrentModel) {
       markBaseBeds(fallback);
       return fallback;
@@ -224,48 +378,48 @@
     return room && area ? { ...room, areaId: area.id, areaName: area.name } : null;
   }
 
-  function updateRoomReservation(roomKey, status, reservationCode = "", checkIn = "", checkOut = "", note = "", roomLabel = "", category = "", capacity = 1, operator = "") {
-    const data = loadRoomReservations();
+  async function updateRoomReservation(
+    roomKey,
+    status,
+    guestName = "",
+    reservationCode = "",
+    cpf = "",
+    phone = "",
+    emergencyContact = "",
+    emergencyPhone = "",
+    bloodType = "",
+    checkIn = "",
+    checkOut = "",
+    actualCheckOut = "",
+    note = "",
+    roomLabel = "",
+    category = "",
+    capacity = 1,
+    operator = "") {
     const [areaId, roomId] = String(roomKey || "").split("|");
-    const area = data.areas.find((item) => item.id === areaId);
-    const room = area?.rooms.find((item) => item.id === roomId);
-    if (!area || !room) throw new Error("Cama não encontrada.");
+    if (areaId !== "camas" || !roomId) throw new Error("Cama não encontrada.");
 
-    const nextLabel = sanitizeBedLabel(roomLabel || room.label);
-    if (!nextLabel) throw new Error("Informe a identificação da cama.");
-
-    const nextId = slugify(nextLabel);
-    if (area.rooms.some((item) => item !== room && (item.id === nextId || item.label.toLowerCase() === nextLabel.toLowerCase()))) {
-      throw new Error("Já existe uma cama com esta identificação.");
-    }
-
-    const safeCode = sanitizeReservationCode(reservationCode || room.reservationCode || "");
-    const nextCode = ["reserved", "occupied"].includes(status)
-      ? safeCode || `RSV-${String(Date.now()).slice(-6)}`
-      : "";
-
-    room.id = nextId;
-    room.label = nextLabel;
-    room.category = sanitizeOperationalNote(category) || "Leito";
-    room.capacity = Math.max(1, Number(capacity || 1));
-    room.status = status;
-    room.reservationCode = nextCode;
-    room.checkIn = ["reserved", "occupied"].includes(status) ? checkIn || room.checkIn || todayInputValue() : "";
-    room.checkOut = ["reserved", "occupied"].includes(status) ? checkOut || room.checkOut || "" : "";
-    room.note = sanitizeOperationalNote(note || (status === "cleaning" ? "Limpeza em andamento" : status === "maintenance" ? "Manutenção programada" : ""));
-    room.operator = sanitizeOperationalNote(operator || room.operator || "");
-    room.updatedAt = new Date().toISOString();
-
-    data.history.unshift({
-      date: room.updatedAt,
-      areaName: area.name,
-      roomLabel: room.label,
-      status,
-      reservationCode: room.reservationCode,
-      note: room.operator ? `${room.note} - Responsável: ${room.operator}` : room.note
+    await fetchJson(`/api/rooms/${encodeURIComponent(roomId)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        roomLabel,
+        category,
+        capacity,
+        status,
+        guestName,
+        reservationCode,
+        cpf,
+        phone,
+        emergencyContact,
+        emergencyPhone,
+        bloodType,
+        checkIn,
+        checkOut,
+        actualCheckOut,
+        note,
+        operator
+      })
     });
-    data.history = data.history.slice(0, 60);
-    saveRoomReservations(data);
   }
 
   function roomSeed(label, category, capacity, status, reservationCode = "", checkInOffset = "", checkOutOffset = "", note = "") {
@@ -294,6 +448,18 @@
     });
   }
 
+  function formatElapsed(value) {
+    const startedAt = Date.parse(value || "");
+    if (!Number.isFinite(startedAt)) return "00:00:00";
+    const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const clock = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+    return days ? `${days}d ${clock}` : clock;
+  }
+
   function roomStatuses() {
     return [
       { id: "available", label: "Disponível", tone: "good" },
@@ -312,6 +478,63 @@
       cleaning: "sparkles",
       maintenance: "wrench"
     }[status] || "circle";
+  }
+
+  function defaultScreenVisibility() {
+    return {
+      hiddenScreensByRole: { admin: [], standard: [] },
+      hiddenFieldsByRole: { admin: [], standard: [] }
+    };
+  }
+
+  function normalizeScreenVisibility(settings = {}) {
+    const fallback = defaultScreenVisibility();
+    return {
+      hiddenScreensByRole: {
+        ...fallback.hiddenScreensByRole,
+        ...(settings.hiddenScreensByRole || {})
+      },
+      hiddenFieldsByRole: {
+        ...fallback.hiddenFieldsByRole,
+        ...(settings.hiddenFieldsByRole || {})
+      }
+    };
+  }
+
+  function isDeveloperUser() {
+    return state.auth?.isAuthenticated && state.auth?.user?.role === "developer";
+  }
+
+  function isBedFieldHidden(fieldId) {
+    if (isDeveloperUser()) {
+      return false;
+    }
+
+    const role = state.auth?.user?.role || "";
+    const hidden = state.screenVisibility?.hiddenFieldsByRole?.[role] || [];
+    return hidden.includes(fieldId);
+  }
+
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(options.headers || {})
+      }
+    });
+    if (!response.ok) {
+      let message = "Falha ao carregar dados do servidor.";
+      try {
+        message = (await response.json()).message || message;
+      } catch {
+        // Mantem a mensagem generica quando a resposta nao for JSON.
+      }
+      throw new Error(message);
+    }
+
+    return response.status === 204 ? null : response.json();
   }
 
   function readStoredJson(key, fallback) {

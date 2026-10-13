@@ -15,7 +15,6 @@ public class MovementDto
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeSection { get; set; } = string.Empty;
     public string EmployeeRegistration { get; set; } = string.Empty;
-    public string Catalyst { get; set; } = string.Empty;
 
     public static MovementDto FromEntity(Movement movement)
     {
@@ -31,8 +30,7 @@ public class MovementDto
             TotalValue = movement.TotalValue,
             EmployeeName = movement.EmployeeName,
             EmployeeSection = movement.EmployeeSection,
-            EmployeeRegistration = movement.EmployeeRegistration,
-            Catalyst = movement.Catalyst
+            EmployeeRegistration = movement.EmployeeRegistration
         };
     }
 }

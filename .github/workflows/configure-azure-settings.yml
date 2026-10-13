@@ -1,0 +1,153 @@
+name: Configure Azure production settings
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_RESOURCE_GROUP: 'rg-generic-inventory-free'
+  AZURE_WEBAPP_NAME: 'generic-inventory-davikds-free'
+  AZURE_LOCATION: 'centralus'
+  AZURE_PUBLIC_URL: 'https://generic-inventory-davikds-free.azurewebsites.net'
+
+jobs:
+  configure:
+    name: Apply secure production App Settings
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm target App Service exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp show \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --query "{name:name,location:location,state:state}" \
+            --output table
+
+      - name: Configure secure production defaults
+        shell: bash
+        env:
+          AUTH_BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.AUTH_BOOTSTRAP_ADMIN_EMAIL }}
+          AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH: ${{ secrets.AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH }}
+          AUTH_BOOTSTRAP_DEVELOPER_EMAIL: ${{ secrets.AUTH_BOOTSTRAP_DEVELOPER_EMAIL }}
+          AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH: ${{ secrets.AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH:-}" ]]; then
+            echo "::add-mask::${AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH}"
+            ADMIN_BOOTSTRAP_ENABLED="true"
+          else
+            ADMIN_BOOTSTRAP_ENABLED="false"
+          fi
+
+          if [[ -n "${AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH:-}" ]]; then
+            echo "::add-mask::${AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH}"
+            DEVELOPER_BOOTSTRAP_ENABLED="true"
+          else
+            DEVELOPER_BOOTSTRAP_ENABLED="false"
+          fi
+
+          ADMIN_EMAIL="${AUTH_BOOTSTRAP_ADMIN_EMAIL:-admin@email.com}"
+          DEVELOPER_EMAIL="${AUTH_BOOTSTRAP_DEVELOPER_EMAIL:-dev@email.com}"
+          SETTINGS=(
+            "ASPNETCORE_ENVIRONMENT=Production"
+            "App__PublicBaseUrl=${AZURE_PUBLIC_URL}"
+            "Data__ConnectionString=Data Source=App_Data/generic-inventory.db"
+            "SwaggerEnabled=false"
+            "Auth__AllowSelfRegistration=false"
+            "Auth__Bootstrap__Enabled=${ADMIN_BOOTSTRAP_ENABLED}"
+            "Auth__Bootstrap__Email=${ADMIN_EMAIL}"
+            "Auth__Bootstrap__Developer__Enabled=${DEVELOPER_BOOTSTRAP_ENABLED}"
+            "Auth__Bootstrap__Developer__Email=${DEVELOPER_EMAIL}"
+          )
+
+          if [[ -n "${AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH:-}" ]]; then
+            SETTINGS+=("Auth__Bootstrap__PasswordHash=${AUTH_BOOTSTRAP_ADMIN_PASSWORD_HASH}")
+          fi
+
+          if [[ -n "${AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH:-}" ]]; then
+            SETTINGS+=("Auth__Bootstrap__Developer__PasswordHash=${AUTH_BOOTSTRAP_DEVELOPER_PASSWORD_HASH}")
+          fi
+
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --settings "${SETTINGS[@]}" \
+            --output none
+
+          echo "Secure production defaults applied."
+          if [[ "${ADMIN_BOOTSTRAP_ENABLED}" == "true" ]]; then
+            echo "Admin bootstrap enabled from an external GitHub Secret. Remove the secret and disable bootstrap after the first successful account creation."
+          else
+            echo "Admin bootstrap remains disabled because no password hash secret was supplied."
+          fi
+          if [[ "${DEVELOPER_BOOTSTRAP_ENABLED}" == "true" ]]; then
+            echo "Developer bootstrap enabled from an external GitHub Secret. Disable it after the first successful account creation."
+          else
+            echo "Developer bootstrap remains disabled because no password hash secret was supplied."
+          fi
+
+      - name: Configure optional integrations without clearing absent secrets
+        shell: bash
+        env:
+          APPROVAL_POWER_AUTOMATE_WEBHOOK_URL: ${{ secrets.APPROVAL_POWER_AUTOMATE_WEBHOOK_URL }}
+          POWER_AUTOMATE_DAILY_WEBHOOK_URL: ${{ secrets.POWER_AUTOMATE_DAILY_WEBHOOK_URL }}
+          POWER_AUTOMATE_MOVEMENT_WEBHOOK_URL: ${{ secrets.POWER_AUTOMATE_MOVEMENT_WEBHOOK_URL }}
+          POWER_AUTOMATE_MANUAL_WEBHOOK_URL: ${{ secrets.POWER_AUTOMATE_MANUAL_WEBHOOK_URL }}
+          POWER_AUTOMATE_SHARED_SECRET: ${{ secrets.POWER_AUTOMATE_SHARED_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_ENABLE_SSL: ${{ secrets.SMTP_ENABLE_SSL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+        run: |
+          set -euo pipefail
+          SETTINGS=()
+
+          add_setting() {
+            local key="$1"
+            local value="${2:-}"
+            if [[ -n "${value}" ]]; then
+              echo "::add-mask::${value}"
+              SETTINGS+=("${key}=${value}")
+            fi
+          }
+
+          add_setting "Approval__PowerAutomateWebhookUrl" "${APPROVAL_POWER_AUTOMATE_WEBHOOK_URL}"
+          add_setting "PowerAutomateReminders__DailyWebhookUrl" "${POWER_AUTOMATE_DAILY_WEBHOOK_URL}"
+          add_setting "PowerAutomateReminders__MovementWebhookUrl" "${POWER_AUTOMATE_MOVEMENT_WEBHOOK_URL}"
+          add_setting "PowerAutomateReminders__ManualWebhookUrl" "${POWER_AUTOMATE_MANUAL_WEBHOOK_URL}"
+          add_setting "PowerAutomateReminders__SharedSecret" "${POWER_AUTOMATE_SHARED_SECRET}"
+          add_setting "Smtp__Host" "${SMTP_HOST}"
+          add_setting "Smtp__Port" "${SMTP_PORT}"
+          add_setting "Smtp__EnableSsl" "${SMTP_ENABLE_SSL}"
+          add_setting "Smtp__User" "${SMTP_USER}"
+          add_setting "Smtp__Password" "${SMTP_PASSWORD}"
+          add_setting "Smtp__From" "${SMTP_FROM}"
+
+          if [[ "${#SETTINGS[@]}" -eq 0 ]]; then
+            echo "No optional integration secrets supplied; existing Azure values were preserved."
+            exit 0
+          fi
+
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --settings "${SETTINGS[@]}" \
+            --output none
+
+          echo "Optional integration settings applied without printing their values."

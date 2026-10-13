@@ -42,6 +42,7 @@ bld/
 
 # Local app state
 App_Data/
+.codex-remote-attachments/
 *.sqlite
 *.sqlite3
 

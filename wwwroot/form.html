@@ -4,26 +4,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Editar cama</title>
-  <meta name="theme-color" content="#f8f5fb">
+  <meta name="theme-color" content="#f4f9fc">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icons/icon.svg?v=20261013-globe-bed" type="image/svg+xml">
   <script>
     (() => {
       try {
         const storedTheme = localStorage.getItem("generic-inventory.theme");
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const systemTheme = "light";
         document.documentElement.dataset.theme = storedTheme || systemTheme;
       } catch {
         document.documentElement.dataset.theme = "light";
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/form.css">
+  <link rel="stylesheet" href="/styles.css?v=20261013-light-theme-type">
+  <link rel="stylesheet" href="/form.css?v=20261013-standard-blue">
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+        "react-dom": "https://esm.sh/react-dom@18.3.1",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
+      }
+    }
+  </script>
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script defer src="/form.js"></script>
+  <script defer src="/form.js?v=20261013-neon-layout"></script>
+  <script type="module" src="/plasma-visual.js?v=20261013-plasma-motion"></script>
 </head>
 <body class="form-page">
+  <div id="plasmaLayer" aria-hidden="true"></div>
   <main class="form-shell">
     <header class="form-topbar">
       <a class="icon-button ghost" href="/?view=rooms" aria-label="Voltar para reservas" title="Voltar">
