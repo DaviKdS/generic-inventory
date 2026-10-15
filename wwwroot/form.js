@@ -11,7 +11,6 @@
 
   const fieldAliases = {
     guestName: "guestName",
-    reservationCode: "guestCode",
     cpf: "cpf",
     phone: "phone",
     emergencyContact: "emergencyContact",
@@ -149,7 +148,6 @@
 
   function renderDetailsForm(room, status) {
     const showGuestName = !isBedFieldHidden(fieldAliases.guestName);
-    const showReservationCode = !isBedFieldHidden(fieldAliases.reservationCode);
     const showCpf = !isBedFieldHidden(fieldAliases.cpf);
     const showPhone = !isBedFieldHidden(fieldAliases.phone);
     const showEmergencyContact = !isBedFieldHidden(fieldAliases.emergencyContact);
@@ -191,12 +189,6 @@
             <span>Capacidade</span>
             <input name="capacity" type="number" min="1" value="${escapeAttribute(room.capacity || 1)}" required>
           </label>
-          ${showReservationCode ? `
-          <label>
-            <span>Código interno do hóspede</span>
-            <input name="reservationCode" value="${escapeAttribute(room.reservationCode || "")}">
-          </label>
-          ` : ""}
           ${showGuestName ? `
           <label>
             <span>Nome do hóspede</span>
@@ -206,13 +198,13 @@
           ${showCpf ? `
           <label>
             <span>CPF</span>
-            <input name="cpf" inputmode="numeric" value="${escapeAttribute(room.cpf || "")}">
+            <input name="cpf" inputmode="numeric" data-mask="cpf" maxlength="14" placeholder="123.456.789-10" value="${escapeAttribute(formatCpf(room.cpf || ""))}">
           </label>
           ` : ""}
           ${showPhone ? `
           <label>
             <span>Telefone</span>
-            <input name="phone" inputmode="tel" value="${escapeAttribute(room.phone || "")}">
+            <input name="phone" inputmode="tel" data-mask="phone" maxlength="15" placeholder="(12) 3456-7891" value="${escapeAttribute(formatPhone(room.phone || ""))}">
           </label>
           ` : ""}
           ${showEmergencyContact ? `
@@ -224,13 +216,15 @@
           ${showEmergencyPhone ? `
           <label>
             <span>Telefone de emergência</span>
-            <input name="emergencyPhone" inputmode="tel" value="${escapeAttribute(room.emergencyPhone || "")}">
+            <input name="emergencyPhone" inputmode="tel" data-mask="phone" maxlength="15" placeholder="(12) 3456-7891" value="${escapeAttribute(formatPhone(room.emergencyPhone || ""))}">
           </label>
           ` : ""}
           ${showBloodType ? `
           <label>
             <span>Tipo sanguíneo</span>
-            <input name="bloodType" value="${escapeAttribute(room.bloodType || "")}">
+            <select name="bloodType">
+              ${bloodTypeOptions(room.bloodType)}
+            </select>
           </label>
           ` : ""}
           ${showCheckIn ? `
@@ -283,6 +277,12 @@
       });
     });
 
+    elements.content.querySelectorAll("[data-mask]").forEach((input) => {
+      input.addEventListener("input", () => {
+        input.value = input.dataset.mask === "cpf" ? formatCpf(input.value) : formatPhone(input.value);
+      });
+    });
+
     elements.content.querySelector("[data-room-form]")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
@@ -308,16 +308,23 @@
     const note = preserveFields.has("note")
       ? room.note || ""
       : String(formData.get("note") || "");
+    const cpf = preserveFields.has("cpf") ? room.cpf || "" : String(formData.get("cpf") || "");
+    const phone = preserveFields.has("phone") ? room.phone || "" : String(formData.get("phone") || "");
+    const emergencyPhone = preserveFields.has("emergencyPhone") ? room.emergencyPhone || "" : String(formData.get("emergencyPhone") || "");
+
+    validateCpf(cpf);
+    validatePhone(phone, "Telefone");
+    validatePhone(emergencyPhone, "Telefone de emergência");
 
     await updateRoomReservation(
       state.roomKey,
       state.status || "available",
       preserveFields.has("guestName") ? room.guestName || "" : String(formData.get("guestName") || ""),
-      preserveFields.has("guestCode") ? room.reservationCode || "" : String(formData.get("reservationCode") || ""),
-      preserveFields.has("cpf") ? room.cpf || "" : String(formData.get("cpf") || ""),
-      preserveFields.has("phone") ? room.phone || "" : String(formData.get("phone") || ""),
+      room.reservationCode || "",
+      cpf,
+      phone,
       preserveFields.has("emergencyContact") ? room.emergencyContact || "" : String(formData.get("emergencyContact") || ""),
-      preserveFields.has("emergencyPhone") ? room.emergencyPhone || "" : String(formData.get("emergencyPhone") || ""),
+      emergencyPhone,
       preserveFields.has("bloodType") ? room.bloodType || "" : String(formData.get("bloodType") || ""),
       preserveFields.has("checkIn") ? room.checkIn || "" : String(formData.get("checkIn") || ""),
       preserveFields.has("checkOut") ? room.checkOut || "" : String(formData.get("checkOut") || ""),
@@ -458,6 +465,48 @@
     const seconds = totalSeconds % 60;
     const clock = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
     return days ? `${days}d ${clock}` : clock;
+  }
+
+  function formatCpf(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+
+  function formatPhone(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+    if (!digits) return "";
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}${digits.length > 6 ? `-${digits.slice(6)}` : ""}`;
+    }
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  function bloodTypeOptions(value) {
+    const normalized = String(value || "").trim().toUpperCase();
+    const options = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+    return options.map((option) => {
+      const label = option || "Não informado";
+      const selected = normalized === option || (!options.slice(1).includes(normalized) && option === "") ? " selected" : "";
+      return `<option value="${escapeAttribute(option)}"${selected}>${escapeHtml(label)}</option>`;
+    }).join("");
+  }
+
+  function validateCpf(value) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (digits && digits.length !== 11) {
+      throw new Error("Informe o CPF no formato 123.456.789-10.");
+    }
+  }
+
+  function validatePhone(value, label) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (digits && ![10, 11].includes(digits.length)) {
+      throw new Error(`${label} deve ter 10 ou 11 dígitos.`);
+    }
   }
 
   function roomStatuses() {

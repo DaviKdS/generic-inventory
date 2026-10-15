@@ -17,6 +17,11 @@ public class BedReservationsService
         "maintenance"
     };
 
+    private static readonly HashSet<string> ValidBloodTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"
+    };
+
     private readonly AppDbContext _db;
 
     public BedReservationsService(AppDbContext db)
@@ -132,11 +137,11 @@ public class BedReservationsService
         }
         bed.GuestName = hiddenFields.Contains("guestName") ? bed.GuestName : SanitizeText(form.GuestName, 120);
         bed.GuestCode = hiddenFields.Contains("guestCode") ? bed.GuestCode : SanitizeCode(form.ReservationCode);
-        bed.Cpf = hiddenFields.Contains("cpf") ? bed.Cpf : SanitizeDigits(form.Cpf, 11);
-        bed.Phone = hiddenFields.Contains("phone") ? bed.Phone : SanitizeText(form.Phone, 32);
+        bed.Cpf = hiddenFields.Contains("cpf") ? bed.Cpf : NormalizeCpf(form.Cpf);
+        bed.Phone = hiddenFields.Contains("phone") ? bed.Phone : NormalizePhone(form.Phone, "Telefone");
         bed.EmergencyContact = hiddenFields.Contains("emergencyContact") ? bed.EmergencyContact : SanitizeText(form.EmergencyContact, 120);
-        bed.EmergencyPhone = hiddenFields.Contains("emergencyPhone") ? bed.EmergencyPhone : SanitizeText(form.EmergencyPhone, 32);
-        bed.BloodType = hiddenFields.Contains("bloodType") ? bed.BloodType : SanitizeText(form.BloodType, 8).ToUpperInvariant();
+        bed.EmergencyPhone = hiddenFields.Contains("emergencyPhone") ? bed.EmergencyPhone : NormalizePhone(form.EmergencyPhone, "Telefone de emergência");
+        bed.BloodType = hiddenFields.Contains("bloodType") ? bed.BloodType : NormalizeBloodType(form.BloodType);
         bed.CheckIn = hiddenFields.Contains("checkIn") ? bed.CheckIn : NormalizeDate(form.CheckIn);
         bed.CheckOut = hiddenFields.Contains("checkOut") ? bed.CheckOut : NormalizeDate(form.CheckOut);
         bed.ActualCheckOut = hiddenFields.Contains("actualCheckOut") ? bed.ActualCheckOut : NormalizeDate(form.ActualCheckOut);
@@ -360,6 +365,54 @@ public class BedReservationsService
     {
         var digits = Regex.Replace(value ?? string.Empty, @"\D", string.Empty);
         return digits[..Math.Min(maxLength, digits.Length)];
+    }
+
+    private static string NormalizeCpf(string value)
+    {
+        var digits = Regex.Replace(value ?? string.Empty, @"\D", string.Empty);
+        if (digits.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (digits.Length != 11)
+        {
+            throw new ArgumentException("CPF deve ter 11 dígitos no formato 123.456.789-10.");
+        }
+
+        return digits;
+    }
+
+    private static string NormalizePhone(string value, string fieldLabel)
+    {
+        var digits = Regex.Replace(value ?? string.Empty, @"\D", string.Empty);
+        if (digits.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (digits.Length is not 10 and not 11)
+        {
+            throw new ArgumentException($"{fieldLabel} deve ter 10 ou 11 dígitos.");
+        }
+
+        return digits;
+    }
+
+    private static string NormalizeBloodType(string value)
+    {
+        var normalized = SanitizeText(value, 16).ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(normalized) || normalized is "NÃO INFORMADO" or "NAO INFORMADO")
+        {
+            return string.Empty;
+        }
+
+        if (!ValidBloodTypes.Contains(normalized))
+        {
+            throw new ArgumentException("Selecione um tipo sanguíneo válido.");
+        }
+
+        return normalized;
     }
 
     private static string NormalizeDate(string value)

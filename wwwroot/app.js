@@ -57,7 +57,6 @@
 
   const bedFieldVisibilityCatalog = [
     { id: "guestName", label: "Nome do hóspede" },
-    { id: "guestCode", label: "Código interno do hóspede" },
     { id: "cpf", label: "CPF" },
     { id: "phone", label: "Telefone" },
     { id: "emergencyContact", label: "Contato de emergência" },
@@ -905,9 +904,8 @@
           <div><dt>Categoria</dt><dd>${escapeHtml(item.category)}</dd></div>
           <div><dt>Capacidade</dt><dd>${escapeHtml(String(item.capacity))}</dd></div>
           ${item.guestName && !isBedFieldHidden("guestName") ? `<div><dt>Hóspede</dt><dd>${escapeHtml(item.guestName)}</dd></div>` : ""}
-          ${isBedFieldHidden("guestCode") ? "" : `<div><dt>Código</dt><dd>${escapeHtml(item.reservationCode || "-")}</dd></div>`}
           ${item.cpf && !isBedFieldHidden("cpf") ? `<div><dt>CPF</dt><dd>${escapeHtml(maskCpf(item.cpf))}</dd></div>` : ""}
-          ${item.phone && !isBedFieldHidden("phone") ? `<div><dt>Telefone</dt><dd>${escapeHtml(item.phone)}</dd></div>` : ""}
+          ${item.phone && !isBedFieldHidden("phone") ? `<div><dt>Telefone</dt><dd>${escapeHtml(formatPhone(item.phone))}</dd></div>` : ""}
           ${period ? `<div><dt>Período</dt><dd>${escapeHtml(period)}</dd></div>` : ""}
         </dl>
         ${item.note && !isBedFieldHidden("note") ? `<p>${escapeHtml(item.note)}</p>` : ""}
@@ -941,7 +939,7 @@
                   </div>
                   <strong>${escapeHtml(room.label)}</strong>
                   <span>${escapeHtml(status.label)}</span>
-                  <small>${escapeHtml(isBedFieldHidden("guestCode") ? room.category : room.reservationCode || room.category)}</small>
+                  <small>${escapeHtml(room.category)}</small>
                 </article>
               `;
             }).join("")}
@@ -955,14 +953,13 @@
   function renderRoomHistory(history = []) {
     const recent = history.slice(0, 12);
     if (!recent.length) return empty("Nenhum histórico de reserva registrado.");
-    const showCode = !isBedFieldHidden("guestCode");
     const showNote = !isBedFieldHidden("note");
     const showOperator = !isBedFieldHidden("operator");
 
     return `
       <div class="table-card">
         <table>
-          <thead><tr><th>Data</th><th>Cama</th><th>Status</th>${showCode ? "<th>Código</th>" : ""}${showNote ? "<th>Observação</th>" : ""}${showOperator ? "<th>Responsável</th>" : ""}</tr></thead>
+          <thead><tr><th>Data</th><th>Cama</th><th>Status</th>${showNote ? "<th>Observação</th>" : ""}${showOperator ? "<th>Responsável</th>" : ""}</tr></thead>
           <tbody>
             ${recent.map((entry) => {
               const status = roomStatuses().find((item) => item.id === entry.status) || roomStatuses()[0];
@@ -971,7 +968,6 @@
                   <td>${formatDateTime(entry.date)}</td>
                   <td>${escapeHtml(entry.roomLabel)}</td>
                   <td><span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span></td>
-                  ${showCode ? `<td>${escapeHtml(entry.reservationCode || "-")}</td>` : ""}
                   ${showNote ? `<td>${escapeHtml(entry.note || "-")}</td>` : ""}
                   ${showOperator ? `<td>${escapeHtml(entry.operator || "-")}</td>` : ""}
                 </tr>
@@ -1756,7 +1752,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Generic bed reservations</h2>
-          <p>The Reservations page starts with 24 editable beds, lets operators add more beds, and opens a dedicated segmented form at <code>/form</code> to choose status, identify the operator, and save necessary operational details. Collect only what is needed, restrict sensitive fields in Access, and follow your organization's data-protection policy.</p>
+          <p>The Reservations page starts with 24 editable beds, lets operators add more beds, and opens a dedicated segmented form at <code>/form</code> to choose status, identify the operator, and save necessary operational details. CPF and phone fields use Brazilian masks, blood type is selected from a controlled list, and the legacy internal code is no longer shown. Collect only what is needed, restrict sensitive fields in Access, and follow your organization's data-protection policy.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="eye-off"></i>
@@ -1795,7 +1791,7 @@
         <article class="panel doc-card">
           <i data-lucide="hotel"></i>
           <h2>Reservas genéricas de camas</h2>
-          <p>A tela Reservas inicia com 24 camas editáveis, permite adicionar novas camas e abre um formulário segmentado em <code>/form</code> para escolher status, identificar o responsável e salvar os dados operacionais necessários. Colete apenas o necessário, restrinja campos sensíveis em Acessos e siga a política de proteção de dados da organização.</p>
+          <p>A tela Reservas inicia com 24 camas editáveis, permite adicionar novas camas e abre um formulário segmentado em <code>/form</code> para escolher status, identificar o responsável e salvar os dados operacionais necessários. CPF e telefones usam máscaras brasileiras, o tipo sanguíneo usa uma lista controlada e o código interno legado não é mais exibido. Colete apenas o necessário, restrinja campos sensíveis em Acessos e siga a política de proteção de dados da organização.</p>
         </article>
         <article class="panel doc-card">
           <i data-lucide="eye-off"></i>
@@ -1877,6 +1873,15 @@
   function renderReleases() {
     elements.content.innerHTML = `
       <section class="release-list">
+        <article class="panel release-card">
+          <div>
+            <span class="tag warn">v1.4.1-beta</span>
+            <h2>${state.language === "en" ? "Safer bed information fields" : "Campos de informações de camas mais seguros"}</h2>
+            <p>${state.language === "en"
+              ? "Removes the internal guest code from the interface, formats CPF and fixed/mobile phone numbers, validates them on the server, and adds a controlled blood-type selector while preserving legacy values in storage."
+              : "Remove o código interno do hóspede da interface, formata CPF e telefones fixos/celulares, valida os dados no servidor e adiciona uma seleção controlada de tipo sanguíneo, preservando valores legados no armazenamento."}</p>
+          </div>
+        </article>
         <article class="panel release-card">
           <div>
             <span class="tag warn">v1.4.0-beta</span>
@@ -2680,6 +2685,16 @@
     return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`;
   }
 
+  function formatPhone(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+    if (!digits) return "";
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}${digits.length > 6 ? `-${digits.slice(6)}` : ""}`;
+    }
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
   function locale() {
     return state.language === "en" ? "en-US" : "pt-BR";
   }
@@ -2753,7 +2768,7 @@
     }
 
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/service-worker.js").catch(() => {
+      navigator.serviceWorker.register("/service-worker.js?v=20261015-bed-fields").catch(() => {
         // Android can still use the responsive web app when service workers are unavailable.
       });
     });

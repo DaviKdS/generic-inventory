@@ -158,5 +158,9 @@ public class BedReservationsController : ControllerBase
         {
             return Conflict(new { message = ex.Message });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

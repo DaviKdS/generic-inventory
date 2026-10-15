@@ -1,13 +1,13 @@
-const CACHE_NAME = "generic-inventory-v43-globe-bed-icon";
+const CACHE_NAME = "generic-inventory-v46-bed-fields";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/form",
   "/form.html",
   "/form.css?v=20261013-standard-blue",
-  "/form.js?v=20261013-neon-layout",
+  "/form.js?v=20261015-bed-fields",
   "/styles.css?v=20261013-light-theme-type",
-  "/app.js?v=20261013-blue-buttons",
+  "/app.js?v=20261015-bed-fields-3",
   "/plasma-visual.js?v=20261013-plasma-motion",
   "/manifest.webmanifest",
   "/icons/icon.svg?v=20261013-globe-bed"
