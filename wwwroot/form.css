@@ -153,6 +153,11 @@
   margin-left: auto;
 }
 
+.form-timer.countdown {
+  background: rgba(92, 166, 230, 0.12);
+  border-color: rgba(128, 199, 255, 0.3);
+}
+
 .form-card input,
 .form-card select,
 .form-card textarea {

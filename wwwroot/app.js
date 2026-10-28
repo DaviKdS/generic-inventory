@@ -357,7 +357,11 @@
   }
 
   function availableViews() {
-    return views.filter((view) => can(view.permission) && !isScreenHiddenForCurrentRole(view.id));
+    const role = state.auth?.user?.role || "";
+    return views.filter((view) => {
+      if (role === "standard" && view.id !== "rooms") return false;
+      return can(view.permission) && !isScreenHiddenForCurrentRole(view.id);
+    });
   }
 
   function ensureCurrentViewAvailable(available = availableViews()) {
@@ -540,8 +544,19 @@
   }
 
   function refreshRoomTimers() {
-    document.querySelectorAll("[data-occupancy-timer]").forEach((element) => {
-      element.textContent = formatElapsed(element.dataset.occupancyTimer);
+    document.querySelectorAll("[data-room-timer]").forEach((element) => {
+      const mode = element.dataset.timerMode || "elapsed";
+      const start = Date.parse(element.dataset.timerStart || "");
+      const target = Date.parse(element.dataset.timerTarget || "");
+      const reference = mode === "countdown" ? target : start;
+      if (!Number.isFinite(reference)) {
+        element.textContent = "--:--:--";
+        return;
+      }
+      const seconds = mode === "countdown"
+        ? Math.max(0, Math.floor((reference - Date.now()) / 1000))
+        : Math.max(0, Math.floor((Date.now() - reference) / 1000));
+      element.textContent = formatDuration(seconds);
     });
   }
 
@@ -885,7 +900,8 @@
     const status = roomStatuses().find((entry) => entry.id === item.status) || roomStatuses()[0];
     const canOperate = can(permissions.stockMove);
     const period = formatVisibleRoomPeriod(item);
-    const showTimer = ["reserved", "occupied"].includes(item.status) && item.occupancyStartedAt;
+    const removable = canOperate && canDeleteRoom(item);
+    const timers = renderRoomTimers(item);
     return `
       <article class="room-card ${escapeAttribute(item.status)}">
         <header>
@@ -893,13 +909,7 @@
           <span class="tag ${escapeAttribute(status.tone)}">${escapeHtml(status.label)}</span>
         </header>
         <h3>${escapeHtml(item.label)}</h3>
-        ${showTimer ? `
-          <div class="room-timer">
-            <i data-lucide="timer"></i>
-            <span>Tempo em uso</span>
-            <strong data-occupancy-timer="${escapeAttribute(item.occupancyStartedAt)}">${escapeHtml(formatElapsed(item.occupancyStartedAt))}</strong>
-          </div>
-        ` : ""}
+        ${timers}
         <dl>
           <div><dt>Categoria</dt><dd>${escapeHtml(item.category)}</dd></div>
           <div><dt>Capacidade</dt><dd>${escapeHtml(String(item.capacity))}</dd></div>
@@ -912,6 +922,7 @@
         ${canOperate ? `
           <div class="room-actions">
             <a class="icon-button" title="Editar status" aria-label="Editar status de ${escapeAttribute(item.label)}" href="/form?room=${encodeURIComponent(`${item.areaId}|${item.id}`)}"><i data-lucide="pencil"></i></a>
+            ${removable ? `<button class="icon-button danger" type="button" data-room-delete="${escapeAttribute(`${item.areaId}|${item.id}`)}" title="Excluir ${escapeAttribute(item.label)}" aria-label="Excluir ${escapeAttribute(item.label)}"><i data-lucide="trash-2"></i></button>` : ""}
           </div>
         ` : ""}
       </article>
@@ -987,6 +998,65 @@
       { id: "cleaning", label: "Limpeza", tone: "warn" },
       { id: "maintenance", label: "Manutenção", tone: "" }
     ];
+  }
+
+  const ROOM_TASK_DURATION_SECONDS = 2 * 60 * 60;
+  const ROOM_DEFAULT_STAY_SECONDS = 24 * 60 * 60;
+
+  function renderRoomTimers(room) {
+    const start = room.occupancyStartedAt || room.updatedAt;
+    if (!start || room.status === "available") return "";
+    const target = roomTimerTarget(room, start);
+    const elapsed = formatDurationBetween(start, Date.now());
+    const countdown = Number.isFinite(target) ? formatDurationBetween(Date.now(), target) : "--:--:--";
+    if (room.status === "reserved") {
+      return roomTimerMarkup("Ocupada em", countdown, "countdown", start, target);
+    }
+    if (["occupied", "cleaning", "maintenance"].includes(room.status)) {
+      const elapsedLabel = room.status === "occupied" ? "Tempo em uso" : "Tempo da tarefa";
+      return `${roomTimerMarkup(elapsedLabel, elapsed, "elapsed", start, target)}${roomTimerMarkup("Disponível em", countdown, "countdown", start, target)}`;
+    }
+    return "";
+  }
+
+  function roomTimerMarkup(label, value, mode, start, target) {
+    return `<div class="room-timer ${mode === "countdown" ? "countdown" : "elapsed"}">
+      <i data-lucide="${mode === "countdown" ? "hourglass" : "timer"}"></i>
+      <span>${escapeHtml(label)}</span>
+      <strong data-room-timer data-timer-mode="${mode}" data-timer-start="${escapeAttribute(start || "")}" data-timer-target="${escapeAttribute(Number.isFinite(target) ? new Date(target).toISOString() : "")}">${escapeHtml(value)}</strong>
+    </div>`;
+  }
+
+  function roomTimerTarget(room, start) {
+    const checkIn = parseLocalDate(room.checkIn, false);
+    const checkOut = parseLocalDate(room.checkOut, true);
+    if (room.status === "reserved") return checkIn || Date.parse(start) + ROOM_DEFAULT_STAY_SECONDS * 1000;
+    if (room.status === "occupied") return checkOut || Date.parse(start) + ROOM_DEFAULT_STAY_SECONDS * 1000;
+    if (["cleaning", "maintenance"].includes(room.status)) return checkOut || Date.parse(start) + ROOM_TASK_DURATION_SECONDS * 1000;
+    return NaN;
+  }
+
+  function parseLocalDate(value, endOfDay) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return NaN;
+    const date = new Date(`${value}T${endOfDay ? "23:59:59" : "00:00:00"}`);
+    return Number.isFinite(date.getTime()) ? date.getTime() : NaN;
+  }
+
+  function formatDurationBetween(from, to) {
+    const start = typeof from === "number" ? from : Date.parse(from || "");
+    const end = typeof to === "number" ? to : Date.parse(to || "");
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return "--:--:--";
+    return formatDuration(Math.max(0, Math.floor((end - start) / 1000)));
+  }
+
+  function formatDuration(totalSeconds) {
+    const seconds = Math.max(0, Number(totalSeconds) || 0);
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = Math.floor(seconds % 60);
+    const clock = [hours, minutes, remainder].map((part) => String(part).padStart(2, "0")).join(":");
+    return days ? `${days}d ${clock}` : clock;
   }
 
   function roomStatusOptions(selected = "") {

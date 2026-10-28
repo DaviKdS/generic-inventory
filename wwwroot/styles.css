@@ -1285,6 +1285,11 @@ textarea {
   margin-left: auto;
 }
 
+.rooms-experience .room-timer.countdown {
+  background: rgba(92, 166, 230, 0.12);
+  border-color: rgba(128, 199, 255, 0.3);
+}
+
 .room-alert {
   align-items: center;
   background: rgba(var(--surface-rgb), 0.9);

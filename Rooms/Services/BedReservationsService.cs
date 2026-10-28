@@ -118,16 +118,16 @@ public class BedReservationsService
         }
         await EnsureUniqueLabelAsync(label, bed.Id, cancellationToken);
 
-        var wasInUse = IsInUseStatus(bed.Status);
+        var wasActive = IsActiveStatus(bed.Status);
         bed.Label = label;
         bed.Category = SanitizeText(form.Category, 80, "Leito");
         bed.Capacity = Math.Clamp(form.Capacity, 1, 99);
         bed.Status = ValidStatuses.Contains(form.Status) ? form.Status.ToLowerInvariant() : "available";
-        if (!wasInUse && IsInUseStatus(bed.Status))
+        if (!wasActive && IsActiveStatus(bed.Status))
         {
             bed.OccupancyStartedAt = DateTimeOffset.UtcNow;
         }
-        else if (!IsInUseStatus(bed.Status))
+        else if (!IsActiveStatus(bed.Status))
         {
             bed.OccupancyStartedAt = null;
         }
@@ -231,7 +231,7 @@ public class BedReservationsService
                 CheckOut = seed.CheckOutOffset == null ? string.Empty : DateOnly.FromDateTime(DateTime.Today.AddDays(seed.CheckOutOffset.Value)).ToString("yyyy-MM-dd"),
                 Note = seed.Note,
                 Fixed = true,
-                OccupancyStartedAt = IsInUseStatus(seed.Status) ? now : null,
+                OccupancyStartedAt = IsActiveStatus(seed.Status) ? now : null,
                 UpdatedAt = now
             });
         }
@@ -331,6 +331,13 @@ public class BedReservationsService
     {
         return string.Equals(status, "reserved", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(status, "occupied", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsActiveStatus(string status)
+    {
+        return IsInUseStatus(status) ||
+            string.Equals(status, "cleaning", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status, "maintenance", StringComparison.OrdinalIgnoreCase);
     }
 
     private static int BedNumber(string label)
